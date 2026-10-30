@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOALBS Config Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+  --border: #30363d; --text: #e6edf3; --muted: #7d8590;
+  --accent: #58a6ff; --green: #3fb950; --red: #f85149; --orange: #e3b341;
+  --radius: 8px; --font: 'Outfit', sans-serif; --mono: 'JetBrains Mono', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
+body.dragging .main{outline:2px dashed var(--accent);outline-offset:-6px;border-radius:var(--radius)}
+a{color:var(--accent)}
+code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:.95em}
+
+/* Header */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
+.hlogo{display:flex;align-items:center;gap:10px}
+.htitle{font-size:17px;font-weight:700}
+.hsub{font-size:11px;color:var(--muted);margin-top:1px}
+.hfile{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;color:var(--muted);min-width:0}
+.hfile b{color:var(--text);font-family:var(--mono);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hfile .dirty{color:var(--orange);white-space:nowrap}
+.hactions{display:flex;gap:8px}
+
+/* Buttons */
+.btn{padding:8px 14px;border-radius:var(--radius);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn:disabled{opacity:.6;cursor:default}
+.btn-primary{background:var(--accent);color:#0d1117;border-color:var(--accent)}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-secondary{background:var(--surface2);color:var(--text)}
+.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:transparent;color:var(--red);border-color:var(--red);padding:4px 10px;font-size:12px}
+.btn-danger:hover{background:rgba(248,81,73,.1)}
+.btn-ghost{background:transparent;color:var(--muted);padding:4px 10px;font-size:12px}
+.btn-ghost:hover{color:var(--text);background:var(--surface)}
+.btn-add{background:transparent;color:var(--green);border-color:var(--green);padding:6px 12px;font-size:12px}
+.btn-add:hover{background:rgba(63,185,80,.1)}
+
+/* Main */
+.main{max-width:920px;margin:0 auto;padding:24px 16px}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;margin-bottom:20px}
+.tab{flex:1;padding:8px 10px;border-radius:6px;text-align:center;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border:none;background:none;font-family:var(--font);transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--text);background:var(--surface2)}
+.tab.active{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.tdot{display:none;width:6px;height:6px;border-radius:50%;background:var(--orange);margin-left:6px;vertical-align:middle}
+.tab.has-issues .tdot{display:inline-block}
+
+/* Panels */
+.panel{display:none}.panel.active{display:block}
+
+/* Sections */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:14px}
+.stitle{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.stitle span{font-size:11px;color:var(--muted);font-weight:400}
+
+/* Fields */
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.fw{grid-column:1/-1}
+.field>label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.opt{font-weight:400;text-transform:none;letter-spacing:0;opacity:.8}
+.help{font-size:11px;color:var(--muted);line-height:1.5}
+.help strong{color:var(--text);font-weight:500}
+input[type=text],input[type=password],input[type=number],select{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px;transition:border-color .15s;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+input:required:placeholder-shown{border-color:rgba(227,179,65,.45)}
+input.warn{border-color:var(--orange)}
+input,select,.scard{scroll-margin-top:90px}
+select option{background:var(--surface2)}
+.empty{color:var(--muted);font-size:13px;padding:4px 0}
+.empty.center{text-align:center;padding:24px}
+
+/* Toggles */
+.trow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.trow:last-child{border-bottom:none}
+.tinfo{flex:1}.tlabel{font-size:13px;font-weight:500}.tdesc{font-size:11px;color:var(--muted);margin-top:2px}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.tslider{position:absolute;inset:0;background:var(--border);border-radius:22px;cursor:pointer;transition:.2s}
+.tslider:before{content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s}
+.toggle input:checked+.tslider{background:var(--green)}
+.toggle input:checked+.tslider:before{transform:translateX(18px)}
+.toggle input:focus-visible+.tslider{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;font-family:var(--mono)}
+.b-blue{background:rgba(88,166,255,.15);color:var(--accent);border:1px solid rgba(88,166,255,.3)}
+.b-green{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+.b-red{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+.b-orange{background:rgba(227,179,65,.15);color:var(--orange);border:1px solid rgba(227,179,65,.3)}
+.b-gray{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+
+/* Server cards */
+.scard{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.scard-hdr{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;background:var(--surface2)}
+.scard-hdr:hover{background:var(--border)}
+.sname{font-weight:600;font-size:14px}
+.sprio{color:var(--muted);font-size:12px}
+.sbtns{margin-left:auto;display:flex;gap:6px}
+.scard-body{padding:16px;border-top:1px solid var(--border);display:none}
+.scard.open .scard-body{display:block}
+.schev{color:var(--muted);transition:transform .2s}
+.scard.open .schev{transform:rotate(180deg)}
+.sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sdot.on{background:var(--green)}.sdot.off{background:var(--muted)}
+
+/* Sub sections in server card */
+.sub{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px}
+.subtitle{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+
+/* Tag input */
+.tagbox{display:flex;flex-wrap:wrap;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;min-height:38px;align-items:center;cursor:text}
+.tagbox:focus-within{border-color:var(--accent)}
+.tag{display:inline-flex;align-items:center;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:12px;font-family:var(--mono)}
+.tag-x{cursor:pointer;color:var(--muted);font-size:13px;line-height:1;margin-left:1px}
+.tag-x:hover{color:var(--red)}
+.tag-in{border:none;background:none;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;min-width:80px;padding:2px 0;flex:1}
+
+/* Password wrapper */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:34px}
+.pw-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);background:none;border:none;padding:0;display:flex}
+.pw-btn:hover{color:var(--text)}
+
+/* Hint box */
+.hint{margin-top:10px;padding:10px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.8}
+.hint strong{color:var(--text)}
+
+/* OBS connection test */
+.obs-row{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+.obs-row .help{flex:1;min-width:220px}
+.obs-ok{color:var(--green)}.obs-err{color:var(--red)}
+
+/* Issues list */
+.issues{background:rgba(227,179,65,.06);border:1px solid rgba(227,179,65,.3);border-radius:var(--radius);margin-bottom:14px}
+.issues summary{cursor:pointer;padding:10px 14px;color:var(--orange);font-weight:500;font-size:13px}
+.issues ul{list-style:none;padding:0 14px 10px}
+.issue{background:none;border:none;color:var(--text);font-family:var(--font);font-size:12px;cursor:pointer;padding:3px 0;text-align:left}
+.issue:hover{color:var(--accent)}
+.issue em{font-style:normal;color:var(--muted)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;max-width:calc(100% - 48px);background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:8px;transform:translateY(80px);opacity:0;transition:all .3s;z-index:1000;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.warn{border-color:var(--orange);color:var(--orange)}
+
+/* Drop zone */
+.drop{border:2px dashed var(--border);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;color:var(--muted)}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--text);background:rgba(88,166,255,.04)}
+.drop-icon{font-size:28px;margin-bottom:6px}
+.drop-txt{font-size:14px;font-weight:500}
+.drop-sub{font-size:12px;margin-top:4px}
+
+input[type=file]{display:none}
+hr{border:none;border-top:1px solid var(--border);margin:14px 0}
+
+/* Command grid */
+.cmd-grid{display:grid;grid-template-columns:150px 1fr 1fr 1fr 34px;gap:8px;align-items:start}
+.cmd-hdr{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0}
+.cmd-name{font-family:var(--mono);font-size:13px;font-weight:500;padding-top:8px}
+.cmd-desc{font-family:var(--font);font-size:11px;font-weight:400;color:var(--muted);margin-top:2px}
+.cmd-row{padding:10px 0;border-top:1px solid var(--border)}
+.cmd-row .btn-danger{margin-top:4px}
+select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
+
+/* Collections */
+.crow{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:10px;padding:12px;background:var(--bg);border-radius:6px;border:1px solid var(--border)}
+
+/* Inline toggle (server enabled etc.) */
+.inline-toggle{flex-direction:row;align-items:center;gap:8px;padding-top:20px;cursor:pointer}
+.inline-toggle>span:last-child{font-size:13px;font-weight:500}
+
+@media (max-width:640px){
+  .header{flex-wrap:wrap;padding:12px 16px}
+  .hfile{order:3;width:100%;margin-left:0}
+  .hactions{margin-left:auto}
+  .tabs{overflow-x:auto}
+  .tab{flex:0 0 auto}
+  .cmd-grid,.crow{grid-template-columns:1fr}
+  .cmd-hdrs{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept=".json">
+<input type="file" id="envFileInput">
+<datalist id="obs-scenes"></datalist><datalist id="obs-inputs"></datalist><datalist id="obs-profiles"></datalist><datalist id="obs-colls"></datalist>
+
+<div class="header">
+  <div class="hlogo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+    <div>
+      <div class="htitle">NOALBS Config Editor</div>
+      <div class="hsub">v2.15.0 · Standalone · No install required</div>
+    </div>
+  </div>
+  <div class="hfile" id="fileStatus"></div>
+  <div class="hactions">
+    <button class="btn btn-secondary" onclick="openFile()" title="Open a config.json">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Open
+    </button>
+    <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()" title="Save (Ctrl+S)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span id="saveBtnTxt">Save config.json</span>
+    </button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Drop zone (shown until a file is opened) -->
+  <div class="drop" id="dropZone">
+    <div class="drop-icon">📂</div>
+    <div class="drop-txt">Click to open your config.json — or drag it (or your .env) anywhere onto this page</div>
+    <div class="drop-sub">Changes save straight back to the same file; nothing leaves your PC · <a href="#" onclick="event.preventDefault();event.stopPropagation();hideDrop()">No config yet? Start a new one</a></div>
+  </div>
+
+  <details class="issues" id="issues" open hidden>
+    <summary id="issuesSum"></summary>
+    <ul id="issuesList"></ul>
+  </details>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="setup" onclick="switchTab('setup')">🔧 Setup<i class="tdot"></i></button>
+    <button class="tab" data-tab="switcher" onclick="switchTab('switcher')">⚡ Switcher<i class="tdot"></i></button>
+    <button class="tab" data-tab="servers" onclick="switchTab('servers')">🌐 Servers<i class="tdot"></i></button>
+    <button class="tab" data-tab="chat" onclick="switchTab('chat')">💬 Chat<i class="tdot"></i></button>
+    <button class="tab" data-tab="optional" onclick="switchTab('optional')">⚙️ Optional<i class="tdot"></i></button>
+    <button class="tab" data-tab="env" onclick="switchTab('env')">🔑 Environment<i class="tdot"></i></button>
+  </div>
+
+  <!-- ========== SETUP ========== -->
+  <div class="panel active" id="panel-setup">
+    <div class="section">
+      <div class="stitle">📡 OBS WebSocket <span>How NOALBS talks to OBS Studio (OBS 28 or newer)</span></div>
+      <div class="fg">
+        <div class="field">
+          <label for="sw-host">Host</label>
+          <input type="text" id="sw-host" placeholder="localhost" required>
+        </div>
+        <div class="field">
+          <label for="sw-port">Port</label>
+          <input type="number" id="sw-port" placeholder="4455" min="1" max="65535">
+        </div>
+        <div class="field">
+          <label for="sw-password">Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="sw-password" placeholder="your-obs-websocket-password">
+            <button class="pw-btn" data-eye="sw-password"></button>
+          </div>
+        </div>
+      </div>
+      <div class="obs-row">
+        <button class="btn btn-secondary" id="obsBtn" onclick="fetchObs()">🔌 Test connection &amp; load scene names</button>
+        <span class="help" id="obsStatus">Find these in OBS under <strong>Tools → WebSocket Server Settings</strong>. Connecting lets every scene field suggest your real OBS scene names.</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="stitle">🗂️ Scene Collections <span>Optional — lets you swap OBS profile + scene collection from chat with !collection</span></div>
+      <div id="coll-list"></div>
+      <button class="btn btn-add" onclick="addCollection()" style="margin-top:10px">+ Add Collection</button>
+    </div>
+
+    <div class="section">
+      <div class="stitle">🏷️ Config Name</div>
+      <div class="fg">
+        <div class="field">
+          <label for="user-name">Name</label>
+          <input type="text" id="user-name" placeholder="my-noalbs">
+          <div class="help">A display name for this config. It doesn't have to match any account.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SWITCHER ========== -->
+  <div class="panel" id="panel-switcher">
+    <div class="section">
+      <div class="stitle">🎚️ Switcher Behavior</div>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Enable Bitrate Switching</div><div class="tdesc">Automatically switch OBS scenes based on live bitrate</div></div>
+        <span class="toggle"><input type="checkbox" id="sw-bitrateEnabled"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Only Switch When Streaming</div><div class="tdesc">Require OBS to have an active stream before switching</div></div>
+        <span class="toggle"><input type="checkbox" id="sw-onlyWhenStreaming"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Instantly Switch on Recover</div><div class="tdesc">Return to the Normal scene as soon as bitrate recovers, without waiting for retry attempts</div></div>
+        <span class="toggle"><input type="checkbox" id="sw-instantRecover"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Auto Switch Notification</div><div class="tdesc">Post a message in chat when scenes are automatically switched</div></div>
+        <span class="toggle"><input type="checkbox" id="sw-notification"><span class="tslider"></span></span>
+      </label>
+      <hr>
+      <div class="fg" style="margin-top:4px">
+        <div class="field">
+          <label for="sw-retryAttempts">Retry Attempts</label>
+          <input type="number" id="sw-retryAttempts" min="1" max="30" placeholder="5">
+          <div class="help">Checks in a row before switching. Higher means fewer false switches but a slower reaction.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="stitle">🎬 Switching Scenes <span>Must match your OBS scene names exactly (case-sensitive)</span></div>
+      <div class="fg">
+        <div class="field">
+          <label for="scene-normal">🟢 Normal / Live Scene</label>
+          <input type="text" id="scene-normal" placeholder="LIVE" list="obs-scenes" required>
+        </div>
+        <div class="field">
+          <label for="scene-low">🟡 Low Bitrate Scene</label>
+          <input type="text" id="scene-low" placeholder="LOW" list="obs-scenes" required>
+        </div>
+        <div class="field">
+          <label for="scene-offline">🔴 Offline / Disconnected Scene</label>
+          <input type="text" id="scene-offline" placeholder="BRB" list="obs-scenes" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="stitle">📊 Triggers <span>Leave any trigger blank to turn it off</span></div>
+      <div class="fg">
+        <div class="field">
+          <label for="trig-low">Low Bitrate (kbps)</label>
+          <input type="number" id="trig-low" min="0" placeholder="off">
+          <div class="help">Below this → <span style="color:var(--orange)">Low</span> scene</div>
+        </div>
+        <div class="field">
+          <label for="trig-offline">Offline Bitrate (kbps)</label>
+          <input type="number" id="trig-offline" min="0" placeholder="off">
+          <div class="help">Below this → <span style="color:var(--red)">Offline</span> scene</div>
+        </div>
+        <div class="field">
+          <label for="trig-rtt">Low RTT (ms) <span class="opt">SRT only</span></label>
+          <input type="number" id="trig-rtt" min="0" placeholder="off">
+          <div class="help">Above this → <span style="color:var(--orange)">Low</span> scene</div>
+        </div>
+        <div class="field">
+          <label for="trig-rttOffline">Offline RTT (ms) <span class="opt">SRT only</span></label>
+          <input type="number" id="trig-rttOffline" min="0" placeholder="off">
+          <div class="help">Above this → <span style="color:var(--red)">Offline</span> scene</div>
+        </div>
+      </div>
+      <div class="hint">
+        The <strong>Offline</strong> scene is also used whenever the feed disconnects completely. RTT (round-trip time) triggers only work with SRT servers such as BELABOX or SRT Live Server.
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SERVERS ========== -->
+  <div class="panel" id="panel-servers">
+    <div class="section">
+      <div class="stitle">🌐 Stream Servers <span>Where your stream comes in. NOALBS watches every enabled server and uses the live one with the lowest priority number.</span></div>
+      <div id="srv-list"></div>
+      <button class="btn btn-add" onclick="addServer()" style="margin-top:12px">+ Add Stream Server</button>
+    </div>
+  </div>
+
+  <!-- ========== CHAT ========== -->
+  <div class="panel" id="panel-chat">
+    <div class="section">
+      <div class="stitle">💬 Chat Connection</div>
+      <div class="fg">
+        <div class="field">
+          <label for="chat-platform">Platform</label>
+          <select id="chat-platform" onchange="toggleKick()">
+            <option value="Twitch">Twitch</option>
+            <option value="Kick">Kick</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="chat-username">Your Channel</label>
+          <input type="text" id="chat-username" placeholder="yourchannel" required>
+          <div class="help">Your main account: the chat NOALBS joins. The bot account goes in the 🔑 Environment tab.</div>
+        </div>
+        <div class="field">
+          <label for="chat-prefix">Command Prefix</label>
+          <input type="text" id="chat-prefix" placeholder="!" maxlength="3" oninput="renderCmds()">
+        </div>
+        <div class="field">
+          <label for="chat-lang">Language</label>
+          <select id="chat-lang"></select>
+          <div class="help">Language of the messages NOALBS posts in chat.</div>
+        </div>
+      </div>
+      <div class="sub" id="kick-fields" hidden>
+        <div class="subtitle">Kick</div>
+        <div class="fg">
+          <div class="field">
+            <label for="kick-channelId">Channel ID <span class="opt">optional</span></label>
+            <input type="number" id="kick-channelId" placeholder="">
+          </div>
+          <div class="field">
+            <label for="kick-chatroomId">Chatroom ID <span class="opt">optional</span></label>
+            <input type="number" id="kick-chatroomId" placeholder="">
+          </div>
+          <label class="field inline-toggle"><span class="toggle"><input type="checkbox" id="kick-irlproxy"><span class="tslider"></span></span><span>Use IRL Proxy</span></label>
+        </div>
+      </div>
+      <hr>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Enable Public Commands</div><div class="tdesc">Anyone in chat can use public commands (e.g. !bitrate)</div></div>
+        <span class="toggle"><input type="checkbox" id="chat-pub"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Enable Mod Commands</div><div class="tdesc">Moderators can use mod commands (e.g. !fix, !trigger)</div></div>
+        <span class="toggle"><input type="checkbox" id="chat-mod"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Auto Stop Stream on Host/Raid</div><div class="tdesc">Automatically stop the OBS stream when you host or raid another channel</div></div>
+        <span class="toggle"><input type="checkbox" id="chat-autoStop"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Announce Raid on Auto Stop</div><div class="tdesc">Post a raid announcement in chat when auto stop triggers</div></div>
+        <span class="toggle"><input type="checkbox" id="chat-announceRaid"><span class="tslider"></span></span>
+      </label>
+    </div>
+
+    <div class="section">
+      <div class="stitle">👑 Admin Users <span>Full NOALBS control — type or paste usernames</span></div>
+      <div class="tagbox" id="admins-box" onclick="document.getElementById('admins-in').focus()">
+        <input class="tag-in" id="admins-in" placeholder="Add username and press Enter…">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="stitle">🚫 Ignored Users <span>These users can't trigger any NOALBS commands (other bots, for example)</span></div>
+      <div class="tagbox" id="ignore-box" onclick="document.getElementById('ignore-in').focus()">
+        <input class="tag-in" id="ignore-in" placeholder="Add username and press Enter…">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="stitle">🎮 Commands <span>Change who can use a command, or give it extra names</span></div>
+      <div class="cmd-grid cmd-hdrs" style="margin-bottom:8px">
+        <div class="cmd-hdr">Command</div>
+        <div class="cmd-hdr">Who can use</div>
+        <div class="cmd-hdr">Also allow these users</div>
+        <div class="cmd-hdr">Aliases</div>
+        <div></div>
+      </div>
+      <div id="cmd-list"></div>
+      <select id="cmd-add" class="cmd-add"></select>
+      <div class="help" style="margin-top:8px">Commands not listed here keep their default permission. Separate users and aliases with commas.</div>
+    </div>
+  </div>
+
+  <!-- ========== OPTIONAL ========== -->
+  <div class="panel" id="panel-optional">
+    <div class="section">
+      <div class="stitle">🎬 Optional Scenes <span>Leave blank to disable — must match OBS scene names exactly</span></div>
+      <div class="fg">
+        <div class="field">
+          <label for="opt-starting">Starting Scene</label>
+          <input type="text" id="opt-starting" placeholder="STARTING" list="obs-scenes">
+        </div>
+        <div class="field">
+          <label for="opt-ending">Ending Scene</label>
+          <input type="text" id="opt-ending" placeholder="ENDING" list="obs-scenes">
+        </div>
+        <div class="field">
+          <label for="opt-privacy">Privacy Scene</label>
+          <input type="text" id="opt-privacy" placeholder="PRIVACY" list="obs-scenes">
+        </div>
+        <div class="field">
+          <label for="opt-refresh">Refresh Scene</label>
+          <input type="text" id="opt-refresh" placeholder="REFRESH" list="obs-scenes">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="stitle">⚙️ Optional Options</div>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Twitch Transcoding Check</div><div class="tdesc">Wait for Twitch transcoding to be available before switching to the live scene</div></div>
+        <span class="toggle"><input type="checkbox" id="opt-transCode"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Record While Streaming</div><div class="tdesc">Automatically start OBS recording when your stream goes live</div></div>
+        <span class="toggle"><input type="checkbox" id="opt-record"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Switch to Starting Scene on Stream Start</div><div class="tdesc">Go to the Starting scene automatically when OBS starts streaming</div></div>
+        <span class="toggle"><input type="checkbox" id="opt-toStart"><span class="tslider"></span></span>
+      </label>
+      <label class="trow">
+        <div class="tinfo"><div class="tlabel">Switch from Starting to Live Automatically</div><div class="tdesc">Move from the Starting scene to the Live scene once bitrate is detected</div></div>
+        <span class="toggle"><input type="checkbox" id="opt-fromStart"><span class="tslider"></span></span>
+      </label>
+      <hr>
+      <div class="fg" style="margin-top:4px">
+        <div class="field">
+          <label for="opt-tcRetries">Transcoding Retries</label>
+          <input type="number" id="opt-tcRetries" min="1" max="30" placeholder="5">
+        </div>
+        <div class="field">
+          <label for="opt-tcDelay">Transcoding Delay (seconds)</label>
+          <input type="number" id="opt-tcDelay" min="1" placeholder="15">
+        </div>
+        <div class="field">
+          <label for="opt-offTimeout">Offline Timeout (minutes)</label>
+          <input type="number" id="opt-offTimeout" min="1" placeholder="never">
+          <div class="help">Stop streaming after this many minutes on the Offline scene. Blank = never.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ENVIRONMENT ========== -->
+  <div class="panel" id="panel-env">
+    <div class="section">
+      <div class="stitle">🔑 .env File <span>Bot account login — keep this file private</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:18px">
+        <button class="btn btn-secondary" onclick="openEnvFile()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Load .env
+        </button>
+        <button class="btn btn-primary" onclick="saveEnvFile()" title="Save (Ctrl+S while on this tab)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span id="envSaveTxt">Save .env</span>
+        </button>
+      </div>
+      <div class="fg">
+        <div class="field">
+          <label for="env-username">TWITCH_BOT_USERNAME</label>
+          <input type="text" id="env-username" placeholder="NoMIRLBot">
+          <div class="help">The account that posts in chat. It can be your own account.</div>
+        </div>
+        <div class="field fw">
+          <label for="env-oauth">TWITCH_BOT_OAUTH</label>
+          <div class="pw-wrap">
+            <input type="password" id="env-oauth" placeholder="oauth:xxxxxxxxxxxxxxxx" onblur="fixOauth(this)">
+            <button class="pw-btn" data-eye="env-oauth"></button>
+          </div>
+          <div class="help">Get a token at <a href="https://twitchtokengenerator.com" target="_blank" rel="noopener">twitchtokengenerator.com ↗</a> while logged in as the bot. The <code>oauth:</code> prefix is added for you if it's missing.</div>
+        </div>
+      </div>
+      <div class="sub">
+        <div class="subtitle">Extras <span class="opt">— not in NOALBS's docs; kept for tools that read them</span></div>
+        <div class="fg">
+          <div class="field">
+            <label for="env-channel">TWITCH_CHANNEL</label>
+            <input type="text" id="env-channel" placeholder="neighborhoodofmusic">
+          </div>
+          <div class="field fw">
+            <label for="env-refresh">TWITCH_BOT_REFRESH_TOKEN</label>
+            <div class="pw-wrap">
+              <input type="password" id="env-refresh" placeholder="refresh token from twitchtokengenerator.com">
+              <button class="pw-btn" data-eye="env-refresh"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="help" id="envExtra" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────────────────────
+// Stream server types and their streamServer fields, as NOALBS v2 reads them (src/stream_servers).
+// opt = optional (left out of the file when blank), pw = secret, num = number, bool = on/off,
+// d = value filled in when switching to this type, list = datalist for suggestions
+const TYPE_FIELDS = {
+  Belabox:        [{k:'statsUrl',l:'Stats URL',p:'http://use.srt.belabox.net:8080/STREAMID'},{k:'publisher',l:'Publisher / Stream ID',p:'STREAMID'}],
+  SrtLiveServer:  [{k:'statsUrl',l:'Stats URL',p:'http://127.0.0.1:8181/stats'},{k:'publisher',l:'Publisher',p:'publish/live/feed1'},{k:'apiKey',l:'API Key (irl-srt-server only)',opt:1,pw:1}],
+  Irlhosting:     [{k:'statsUrl',l:'Stats URL',p:'http://localhost:8681/stats'},{k:'publisher',l:'Publisher',p:'publish/live/feed1',opt:1},{k:'application',l:'Application',p:'publish',opt:1},{k:'key',l:'Stream Key',p:'live',opt:1}],
+  Nginx:          [{k:'statsUrl',l:'Stats URL',p:'http://localhost/stats'},{k:'application',l:'Application',p:'publish',d:'publish'},{k:'key',l:'Stream Key',p:'live',d:'live'}],
+  NodeMediaServer:[{k:'statsUrl',l:'Stats URL',p:'http://localhost:8000/api/streams'},{k:'application',l:'Application',p:'publish',d:'publish'},{k:'key',l:'Stream Key',p:'live',d:'live'},{k:'auth.username',l:'Auth Username',p:'admin',opt:1},{k:'auth.password',l:'Auth Password',p:'admin',opt:1,pw:1}],
+  Nimble:         [{k:'statsUrl',l:'Stats URL',p:'http://nimble:8082'},{k:'id',l:'UDP Listener ID (IP:Port)',p:'0.0.0.0:1234'},{k:'application',l:'Application',p:'live'},{k:'key',l:'Stream Key',p:'srt'}],
+  Mediamtx:       [{k:'statsUrl',l:'Stats URL',p:'http://localhost:9997/v3/paths/get/mystream'},{k:'auth.username',l:'Auth Username',p:'user',opt:1},{k:'auth.password',l:'Auth Password',p:'pass',opt:1,pw:1}],
+  Xiu:            [{k:'statsUrl',l:'Stats URL',p:'http://localhost:8000/api/query_stream'},{k:'application',l:'Application',p:'publish',d:'publish'},{k:'key',l:'Stream Key',p:'live',d:'live'}],
+  OpenIRL:        [{k:'statsUrl',l:'Stats URL',p:'http://hostname:8080/stats/...'}],
+  OpenRTMP:       [{k:'statsUrl',l:'Stats URL (including ?key=)',p:'http://hostname:8080/stats?key=sts_...'}],
+  Rist:           [{k:'statsUrl',l:'Stats URL',p:'http://localhost:8681/stats'},{k:'multipath',l:'Multipath (bonded connection)',opt:1,bool:1}],
+  WebSocket:      [{k:'url',l:'WebSocket URL',p:'ws://127.0.0.1/ws-stats'},{k:'feed',l:'Feed',p:'feed1',opt:1},{k:'token',l:'Token',opt:1,pw:1},{k:'reconnectIntervalMs',l:'Reconnect Interval (ms)',p:'1000',opt:1,num:1},{k:'staleTimeoutMs',l:'Stale Timeout (ms)',p:'3000',opt:1,num:1}],
+  Obs:            [{k:'source',l:'OBS Source Name',p:'Media Source',list:'obs-inputs'}]
+};
+const TYPES = Object.keys(TYPE_FIELDS);
+const TYPE_BADGE = {Belabox:'b-orange',Irlhosting:'b-orange',Nginx:'b-blue',NodeMediaServer:'b-green',SrtLiveServer:'b-blue',Mediamtx:'b-blue',Xiu:'b-gray',Obs:'b-red',Nimble:'b-blue',OpenIRL:'b-blue',OpenRTMP:'b-blue',Rist:'b-blue',WebSocket:'b-gray'};
+const TYPE_HELP = {
+  Irlhosting: 'Fill in Publisher, or Application + Stream Key.',
+  Mediamtx: 'End the Stats URL with your stream name.',
+  Obs: 'Watches the bitrate of a source inside OBS, such as the Media Source that receives your feed.',
+  WebSocket: 'The feed can also go in the URL instead, as ?feed=…'
+};
+const SCENE_NAME = {normal:'Normal', low:'Low', offline:'Offline'};
+const SCENE_ICON = {normal:'🟢', low:'🟡', offline:'🔴'};
+
+// Chat command keys NOALBS v2 accepts → [chat word, default permission, what it does]
+const COMMANDS = {
+  Bitrate:['bitrate','Public','Show the current bitrate'],
+  Fix:['fix','Mod','Try to fix the stream'],
+  Refresh:['refresh','Mod','Try to fix the stream'],
+  Trigger:['trigger','Mod','Change the low bitrate trigger'],
+  Otrigger:['otrigger','Mod','Change the offline bitrate trigger'],
+  Rtrigger:['rtrigger','Mod','Change the low RTT trigger'],
+  Ortrigger:['ortrigger','Mod','Change the offline RTT trigger'],
+  Sourceinfo:['sourceinfo','Mod','Show source info'],
+  ServerInfo:['serverinfo','Mod','Show stream server info'],
+  Switch:['switch','Admin','Switch to a scene'],
+  LiveScene:['live','Admin','Switch to the live scene'],
+  StartingScene:['starting','Admin','Switch to the starting scene'],
+  EndingScene:['ending','Admin','Switch to the ending scene'],
+  PrivacyScene:['privacy','Admin','Switch to the privacy scene'],
+  Start:['start','Admin','Start streaming'],
+  Stop:['stop','Admin','Stop streaming'],
+  Rec:['record','Admin','Toggle recording'],
+  Source:['source','Admin','Show or hide a source'],
+  Collection:['collection','Admin','Change scene collection'],
+  StreamServer:['streamserver','Admin','Turn a stream server on/off'],
+  Alias:['alias','Admin','Add or remove aliases'],
+  Noalbs:['noalbs','Admin','NOALBS settings (prefix, retry, …)'],
+  Public:['public','Admin','Turn public commands on/off'],
+  Mod:['mod','Admin','Turn mod commands on/off'],
+  Notify:['notify','Admin','Turn switch notifications on/off'],
+  Autostop:['autostop','Admin','Turn auto stop on raid on/off'],
+  Version:['noalbsversion','','Show the NOALBS version']
+};
+const PERM_NAME = {Public:'Everyone', Vip:'VIPs', Mod:'Mods', Admin:'Admins only'};
+const LANGS = {EN:'English',DE:'Deutsch',DK:'Dansk',ES:'Español',FR:'Français',IT:'Italiano',NB:'Norsk bokmål',NL:'Nederlands',PL:'Polski',PTBR:'Português (Brasil)',RU:'Русский',SV:'Svenska',TR:'Türkçe',UK:'Українська',ZHTW:'中文 (台灣)'};
+const TAB_LABEL = {setup:'Setup', switcher:'Switcher', servers:'Servers', chat:'Chat', optional:'Optional', env:'Environment'};
+
+// Used for a new config, and to fill in anything an opened config leaves out
+const DEFAULT_CONFIG = {
+  user: {id:null, name:'', passwordHash:null},
+  switcher: {
+    bitrateSwitcherEnabled:true, onlySwitchWhenStreaming:true, instantlySwitchOnRecover:true, autoSwitchNotification:true, retryAttempts:5,
+    triggers: {low:450, rtt:1500, offline:400, rttOffline:null},
+    switchingScenes: {normal:'LIVE', low:'LOW', offline:'BRB'},
+    streamServers: []
+  },
+  software: {type:'Obs', host:'localhost', password:'', port:4455},
+  chat: {
+    platform:'Twitch', username:'', admins:[], ignoreUsers:[], language:'EN', prefix:'!',
+    enablePublicCommands:true, enableModCommands:true, enableAutoStopStreamOnHostOrRaid:true, announceRaidOnAutoStop:true,
+    commands: {
+      Fix: {permission:null, userPermissions:[], alias:['f']},
+      Switch: {permission:'Mod', userPermissions:[], alias:['ss']},
+      Bitrate: {permission:null, userPermissions:[], alias:['b']}
+    }
+  },
+  optionalScenes: {starting:null, ending:null, privacy:null, refresh:null},
+  optionalOptions: {twitchTranscodingCheck:false, twitchTranscodingRetries:5, twitchTranscodingDelaySeconds:15, offlineTimeout:null, recordWhileStreaming:false, switchToStartingSceneOnStreamStart:false, switchFromStartingSceneToLiveScene:false}
+};
+
+const EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+const FSA = 'showOpenFilePicker' in window;
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let servers = [], admins = [], ignoreUsers = [], cmdData = {}, colls = [];
+let base = {};          // the config as opened; keys this editor doesn't show are kept from here
+let kickCfg = {};       // extra Kick settings from the opened config
+let fileHandle = null, fileName = null, lastSaved = '';
+let obsLists = null;    // scene/input/profile/collection names from the last OBS connection
+let activeTab = 'setup', issues = [], cmdKeys = [];
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const clone = o => JSON.parse(JSON.stringify(o));
+const isObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
+const isBlank = x => x == null || String(x).trim() === '';
+// Fill in missing keys from def without touching anything val already has
+function withDefaults(def, val) {
+  if (val === undefined) return clone(def);
+  if (!isObj(def) || !isObj(val)) return val;
+  const out = {...val};
+  for (const k in def) out[k] = withDefaults(def[k], val[k]);
+  return out;
+}
+// 'auth.username' style keys for nested streamServer fields
+function getN(obj,key){ const [a,b]=key.split('.'); return b ? obj[a]?.[b] : obj[a]; }
+function setN(obj,key,val){ const [a,b]=key.split('.'); if(b) (obj[a]=obj[a]||{})[b]=val; else obj[a]=val; }
+function delN(obj,key){ const [a,b]=key.split('.'); if(b){ if(obj[a]) delete obj[a][b]; } else delete obj[a]; }
+const splitList = (s, lower) => s.split(',').map(x => x.trim().replace(/^@/,'')).map(x => lower ? x.toLowerCase() : x).filter(Boolean);
+
+function v(id,val){ const el=$(id); if(el) el.value=val; }
+function chk(id,val){ const el=$(id); if(el) el.checked=!!val; }
+function g(id){ return $(id)?.value||''; }
+function gb(id){ return $(id)?.checked||false; }
+function gn(id){ const s=g(id).trim(); if(s==='') return null; const n=parseInt(s,10); return Number.isNaN(n)?null:n; }
+function gi(id,def=0){ const n=gn(id); return n===null?def:n; }
+function setSelect(id,val){ const el=$(id); if(![...el.options].some(o=>o.value===val)) el.add(new Option(`${val} (from file)`, val)); el.value=val; }
+
+// ─── Password toggle ─────────────────────────────────────────────────────────
+function togglePw(id,btn) {
+  const el = $(id);
+  el.type = el.type==='password'?'text':'password';
+  btn.innerHTML = el.type==='password' ? EYE : EYE_OFF;
+}
+const eyeBtn = id => `<button class="pw-btn" onclick="togglePw('${id}',this)" title="Show/hide">${EYE}</button>`;
+
+// ─── Tag inputs ───────────────────────────────────────────────────────────────
+const TAGS = {'admins-box':admins, 'ignore-box':ignoreUsers};
+function initTag(boxId, inputId) {
+  const inp = $(inputId), arr = TAGS[boxId];
+  const commit = () => { addTags(boxId, inputId, inp.value); inp.value=''; };
+  inp.addEventListener('keydown', e => {
+    if (e.key==='Enter'||e.key===','||e.key===' ') { e.preventDefault(); commit(); }
+    else if (e.key==='Backspace' && !inp.value && arr.length) { arr.pop(); renderTags(boxId, inputId); refresh(); }
+  });
+  inp.addEventListener('blur', commit);   // don't lose a name typed without pressing Enter
+  inp.addEventListener('paste', e => { e.preventDefault(); addTags(boxId, inputId, e.clipboardData.getData('text')); });
+}
+function addTags(boxId, inputId, text) {
+  const arr = TAGS[boxId]; let added = false;
+  // NOALBS lowercases usernames itself, so store them that way
+  text.split(/[\s,]+/).map(s => s.replace(/^@/,'').toLowerCase()).filter(Boolean)
+    .forEach(n => { if (!arr.includes(n)) { arr.push(n); added = true; } });
+  if (added) { renderTags(boxId, inputId); refresh(); }
+}
+function renderTags(boxId, inputId) {
+  const box = $(boxId), inp = $(inputId);
+  box.querySelectorAll('.tag').forEach(t=>t.remove());
+  TAGS[boxId].forEach((val,i) => {
+    const t = document.createElement('span'); t.className='tag';
+    t.innerHTML = `${esc(val)}<span class="tag-x" title="Remove" onclick="removeTag('${boxId}','${inputId}',${i})">×</span>`;
+    box.insertBefore(t, inp);
+  });
+}
+function removeTag(boxId, inputId, i) { TAGS[boxId].splice(i,1); renderTags(boxId, inputId); refresh(); }
+
+// ─── Collections ─────────────────────────────────────────────────────────────
+function renderColls() {
+  const el = $('coll-list');
+  if(!colls.length) { el.innerHTML='<div class="empty">No collections set up.</div>'; return; }
+  el.innerHTML = colls.map((c,i) => `
+    <div class="crow">
+      <div class="field"><label>Name for !collection</label><input type="text" value="${esc(c.key)}" oninput="colls[${i}].key=this.value" placeholder="twitch"></div>
+      <div class="field"><label>OBS Profile</label><input type="text" value="${esc(c.profile)}" oninput="colls[${i}].profile=this.value" placeholder="twitch" list="obs-profiles"></div>
+      <div class="field"><label>Scene Collection</label><input type="text" value="${esc(c.collection)}" oninput="colls[${i}].collection=this.value" placeholder="twitch_scenes" list="obs-colls"></div>
+      <button class="btn btn-danger" title="Remove" onclick="colls.splice(${i},1);renderColls();refresh()">✕</button>
+    </div>`).join('');
+}
+function addCollection() { colls.push({key:'',profile:'',collection:''}); renderColls(); refresh(); }
+
+// ─── Servers ──────────────────────────────────────────────────────────────────
+function renderServers() {
+  const el = $('srv-list');
+  if(!servers.length){ el.innerHTML='<div class="empty center">No servers yet. Click "+ Add Stream Server" to add the one your stream comes in through.</div>'; return; }
+  el.innerHTML = servers.map((s,i) => buildCard(s,i)).join('');
+}
+
+const missingFields = s => (TYPE_FIELDS[s.streamServer.type]||[]).filter(f => !f.opt && isBlank(getN(s.streamServer, f.k)));
+
+function buildCard(s, i) {
+  const ss = s.streamServer, type = ss.type, known = type in TYPE_FIELDS;
+  const types = known ? TYPES : [type, ...TYPES];
+  const dep = s.dependsOn?.name || '';
+  return `
+  <div class="scard ${s._open?'open':''}" id="sc-${i}">
+    <div class="scard-hdr" onclick="toggleCard(${i})">
+      <span class="sdot ${s.enabled?'on':'off'}"></span>
+      <span class="badge ${TYPE_BADGE[type]||'b-gray'}">${esc(type)}</span>
+      <span class="sname">${esc(s.name||'Unnamed')}</span>
+      <span class="sprio">· Priority ${s.priority ?? 0}</span>
+      <span class="badge b-orange swarn"${missingFields(s).length?'':' hidden'}>needs info</span>
+      <span class="sbtns">
+        <button class="btn btn-ghost" onclick="event.stopPropagation();dupServer(${i})" title="Add a copy of this server">Duplicate</button>
+        <button class="btn btn-danger" onclick="event.stopPropagation();removeServer(${i})">✕ Remove</button>
+      </span>
+      <svg class="schev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="scard-body">
+      <div class="fg">
+        <div class="field">
+          <label>Server Type</label>
+          <select onchange="changeType(${i},this.value)">
+            ${types.map(t=>`<option value="${esc(t)}"${t===type?' selected':''}>${esc(t)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Server Name</label>
+          <input type="text" value="${esc(s.name)}" oninput="renameServer(${i},this.value)" placeholder="My Server" required>
+        </div>
+        <div class="field">
+          <label>Priority <span class="opt">lower number = preferred</span></label>
+          <input type="number" value="${s.priority ?? 0}" oninput="servers[${i}].priority=parseInt(this.value)||0" min="0" max="99">
+        </div>
+        <label class="field inline-toggle"><span class="toggle"><input type="checkbox" ${s.enabled?'checked':''} onchange="servers[${i}].enabled=this.checked"><span class="tslider"></span></span><span>Enabled</span></label>
+      </div>
+
+      <div class="sub">
+        <div class="subtitle">Connection Settings</div>
+        ${known
+          ? `<div class="fg">${TYPE_FIELDS[type].map(f => fieldHtml(i, f, ss)).join('')}</div>`
+          : `<div class="help">This editor doesn't know the ${esc(type)} type, so its settings are kept exactly as they are in the file.</div>`}
+        ${TYPE_HELP[type] ? `<div class="help" style="margin-top:8px">${TYPE_HELP[type]}</div>` : ''}
+      </div>
+
+      <div class="sub">
+        <div class="subtitle">Override Scenes <span class="opt">— leave blank to use the scenes from the Switcher tab</span></div>
+        <div class="fg">
+          ${['normal','low','offline'].map(k => `<div class="field"><label>${SCENE_ICON[k]} ${SCENE_NAME[k]} Override</label><input type="text" value="${esc(s.overrideScenes?.[k])}" oninput="setSO(${i},'${k}',this.value)" placeholder="Use global" list="obs-scenes"></div>`).join('')}
+        </div>
+      </div>
+
+      <div class="sub">
+        <div class="subtitle">Depends On <span class="opt">— watch another server and use backup scenes while it's offline</span></div>
+        <div class="fg">
+          <div class="field"><label>Depends on Server</label><select id="do-${i}" onchange="setDO(${i},'name',this.value);renderServers();refresh()">${dependsOptions(i)}</select></div>
+          ${dep ? ['normal','low','offline'].map(k => `<div class="field"><label>Backup ${SCENE_NAME[k]} Scene</label><input type="text" value="${esc(s.dependsOn?.backupScenes?.[k])}" oninput="setDO(${i},'${k}',this.value)" placeholder="Use global" list="obs-scenes"></div>`).join('') : ''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function fieldHtml(i, f, ss) {
+  const id = `sf-${i}-${f.k.replace('.','_')}`, val = getN(ss, f.k);
+  if (f.bool) return `<label class="field inline-toggle"><span class="toggle"><input type="checkbox"${val?' checked':''} onchange="setN(servers[${i}].streamServer,'${f.k}',this.checked)"><span class="tslider"></span></span><span>${esc(f.l)}</span></label>`;
+  const input = `<input type="${f.pw?'password':f.num?'number':'text'}" id="${id}" value="${esc(val)}" oninput="setN(servers[${i}].streamServer,'${f.k}',${f.num?"this.value===''?'':+this.value":'this.value'})" placeholder="${esc(f.p)}"${f.opt?'':' required'}${f.list?` list="${f.list}"`:''}>`;
+  return `<div class="field"><label for="${id}">${esc(f.l)}${f.opt?' <span class="opt">optional</span>':''}</label>${f.pw?`<div class="pw-wrap">${input}${eyeBtn(id)}</div>`:input}</div>`;
+}
+
+function dependsOptions(i) {
+  const cur = servers[i].dependsOn?.name || '';
+  const names = [...new Set(servers.filter((_,j) => j!==i).map(s => s.name).filter(Boolean))];
+  if (cur && !names.includes(cur)) names.push(cur);
+  return ['', ...names].map(n => `<option value="${esc(n)}"${n===cur?' selected':''}>${n ? esc(n) : '— Not used —'}</option>`).join('');
+}
+function fillDepends(i) {
+  const sel = $('do-'+i), html = dependsOptions(i);
+  if (sel && sel.dataset.sig !== html && document.activeElement !== sel) { sel.innerHTML = html; sel.dataset.sig = html; }
+}
+
+function setSO(i, key, val) { if(!servers[i].overrideScenes) servers[i].overrideScenes={}; servers[i].overrideScenes[key]=val; }
+function setDO(i, key, val) {
+  if(!servers[i].dependsOn) servers[i].dependsOn={name:'',backupScenes:{}};
+  if(key==='name') servers[i].dependsOn.name=val;
+  else { if(!servers[i].dependsOn.backupScenes) servers[i].dependsOn.backupScenes={}; servers[i].dependsOn.backupScenes[key]=val; }
+}
+function renameServer(i, name) {
+  const old = servers[i].name;
+  // Keep "Depends on" links pointing at this server when it's renamed
+  if (old && !servers.some((o,j) => j!==i && o.name===old))
+    servers.forEach((o,j) => { if (j!==i && o.dependsOn?.name===old) o.dependsOn.name = name; });
+  servers[i].name = name;
+}
+function toggleCard(i) { servers[i]._open=!servers[i]._open; $('sc-'+i)?.classList.toggle('open',servers[i]._open); }
+function updateHdr(i) {
+  const card=$('sc-'+i); if(!card) return;
+  const s=servers[i];
+  card.querySelector('.sdot').className=`sdot ${s.enabled?'on':'off'}`;
+  card.querySelector('.sname').textContent=s.name||'Unnamed';
+  card.querySelector('.sprio').textContent=`· Priority ${s.priority ?? 0}`;
+  card.querySelector('.swarn').hidden=!missingFields(s).length;
+}
+function changeType(i, type) {
+  // Carry over values the new type also uses (Stats URL, application, …)
+  const old = servers[i].streamServer, next = {type};
+  TYPE_FIELDS[type].forEach(f => {
+    const val = getN(old, f.k);
+    if (!isBlank(val)) setN(next, f.k, val); else if (!f.opt) setN(next, f.k, f.d || '');
+  });
+  servers[i].streamServer = next;
+  servers[i]._open = true;
+  renderServers(); refresh();
+}
+function addServer() {
+  const prio = servers.length ? Math.max(...servers.map(s => s.priority ?? 0)) + 1 : 0;
+  servers.push({streamServer:{type:'Belabox',statsUrl:'',publisher:''},name:'New Server',priority:prio,overrideScenes:null,dependsOn:null,enabled:true,_open:true});
+  renderServers(); refresh();
+  setTimeout(() => { const card = $('srv-list').lastElementChild; card?.scrollIntoView({behavior:'smooth',block:'nearest'}); card?.querySelector('.scard-body select')?.focus({preventScroll:true}); }, 50);
+}
+function dupServer(i) {
+  const copy = clone(servers[i]);
+  copy.name = (copy.name || 'Server') + ' (copy)'; copy._open = true;
+  servers.splice(i+1, 0, copy);
+  renderServers(); refresh();
+}
+function removeServer(i) {
+  if (!confirm(`Remove the server "${servers[i].name || 'Unnamed'}"?`)) return;
+  servers.splice(i,1); renderServers(); refresh();
+}
+
+// ─── Commands ─────────────────────────────────────────────────────────────────
+function renderCmds() {
+  cmdKeys = Object.keys(cmdData);
+  const pre = esc(g('chat-prefix') || '!');
+  $('cmd-list').innerHTML = cmdKeys.length ? cmdKeys.map((name, n) => {
+    const cmd = cmdData[name], [word, def, desc] = COMMANDS[name] || [name.toLowerCase(), '', ''];
+    return `
+    <div class="cmd-row cmd-grid">
+      <div class="cmd-name">${pre}${esc(word)}${desc ? `<div class="cmd-desc">${esc(desc)}</div>` : ''}</div>
+      <div>
+        <select onchange="cmdData[cmdKeys[${n}]].permission=this.value||null">
+          <option value="">Default${def ? ` (${PERM_NAME[def].toLowerCase()})` : ''}</option>
+          ${Object.entries(PERM_NAME).map(([p,label]) => `<option value="${p}"${cmd.permission===p?' selected':''}>${label}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <input type="text" value="${esc((cmd.userPermissions||[]).join(', '))}"
+          oninput="cmdData[cmdKeys[${n}]].userPermissions=splitList(this.value,true)" placeholder="user1, user2">
+      </div>
+      <div>
+        <input type="text" value="${esc((cmd.alias||[]).join(', '))}"
+          oninput="cmdData[cmdKeys[${n}]].alias=splitList(this.value)" placeholder="e.g. ${esc(word[0])}">
+      </div>
+      <button class="btn btn-danger" title="Remove (back to defaults)" onclick="delete cmdData[cmdKeys[${n}]];renderCmds();refresh()">✕</button>
+    </div>`; }).join('') : '<div class="empty">No commands customised; they all use their defaults.</div>';
+  $('cmd-add').innerHTML = '<option value="">+ Customise another command…</option>' +
+    Object.entries(COMMANDS).filter(([n]) => !cmdData[n]).map(([n,[w,,d]]) => `<option value="${n}">!${w} — ${esc(d)}</option>`).join('');
+}
+
+// ─── Load ─────────────────────────────────────────────────────────────────────
+function loadConfig(raw) {
+  base = clone(raw);
+  const c = withDefaults(DEFAULT_CONFIG, raw);
+  // User
+  v('user-name', c.user.name ?? '');
+  // Software
+  v('sw-host', c.software.host);
+  v('sw-port', c.software.port);
+  v('sw-password', c.software.password ?? '');
+  colls = Object.entries(c.software.collections || {}).map(([key,val]) => ({key, profile:val.profile||'', collection:val.collection||''}));
+  renderColls();
+  // Switcher
+  const sw = c.switcher;
+  chk('sw-bitrateEnabled', sw.bitrateSwitcherEnabled);
+  chk('sw-onlyWhenStreaming', sw.onlySwitchWhenStreaming);
+  chk('sw-instantRecover', sw.instantlySwitchOnRecover);
+  chk('sw-notification', sw.autoSwitchNotification);
+  v('sw-retryAttempts', sw.retryAttempts);
+  v('trig-low', sw.triggers.low ?? '');
+  v('trig-rtt', sw.triggers.rtt ?? '');
+  v('trig-offline', sw.triggers.offline ?? '');
+  v('trig-rttOffline', sw.triggers.rttOffline ?? '');
+  v('scene-normal', sw.switchingScenes.normal);
+  v('scene-low', sw.switchingScenes.low);
+  v('scene-offline', sw.switchingScenes.offline);
+  servers = (sw.streamServers||[]).map(s => ({...s, _open:false}));
+  renderServers();
+  // Chat — Kick is written as {"Kick": {...}}, Twitch as a plain string
+  const ch = c.chat, plat = ch.platform;
+  const isKick = plat === 'Kick' || (isObj(plat) && 'Kick' in plat);
+  kickCfg = isObj(plat?.Kick) ? clone(plat.Kick) : {};
+  v('chat-platform', isKick ? 'Kick' : 'Twitch');
+  v('kick-channelId', kickCfg.channelId ?? '');
+  v('kick-chatroomId', kickCfg.chatroomId ?? '');
+  chk('kick-irlproxy', kickCfg.useIrlproxy);
+  toggleKick();
+  v('chat-username', ch.username);
+  v('chat-prefix', ch.prefix);
+  setSelect('chat-lang', ch.language);
+  chk('chat-pub', ch.enablePublicCommands);
+  chk('chat-mod', ch.enableModCommands);
+  chk('chat-autoStop', ch.enableAutoStopStreamOnHostOrRaid);
+  chk('chat-announceRaid', ch.announceRaidOnAutoStop);
+  admins.length = 0; admins.push(...(ch.admins||[]));
+  ignoreUsers.length = 0; ignoreUsers.push(...(ch.ignoreUsers||[]));
+  renderTags('admins-box','admins-in');
+  renderTags('ignore-box','ignore-in');
+  // Commands come straight from the file: one that isn't listed keeps NOALBS's own default
+  cmdData = {};
+  Object.entries((raw.chat ? raw.chat.commands : ch.commands) || {}).forEach(([n,cmd]) => { cmdData[n] = {permission:null, userPermissions:[], alias:[], ...cmd}; });
+  renderCmds();
+  // Optional Scenes
+  const os = c.optionalScenes;
+  v('opt-starting', os.starting||''); v('opt-ending', os.ending||'');
+  v('opt-privacy', os.privacy||''); v('opt-refresh', os.refresh||'');
+  // Optional Options
+  const oo = c.optionalOptions;
+  chk('opt-transCode', oo.twitchTranscodingCheck);
+  chk('opt-record', oo.recordWhileStreaming);
+  chk('opt-toStart', oo.switchToStartingSceneOnStreamStart);
+  chk('opt-fromStart', oo.switchFromStartingSceneToLiveScene);
+  v('opt-tcRetries', oo.twitchTranscodingRetries);
+  v('opt-tcDelay', oo.twitchTranscodingDelaySeconds);
+  v('opt-offTimeout', oo.offlineTimeout ?? '');
+  lastSaved = JSON.stringify(buildConfig());
+}
+
+function toggleKick() { $('kick-fields').hidden = g('chat-platform') !== 'Kick'; }
+
+// ─── Open files ──────────────────────────────────────────────────────────────
+async function openFile() {
+  if (!FSA) return $('fileInput').click(); // Firefox/Safari fallback
+  try {
+    const [handle] = await window.showOpenFilePicker({types:[{description:'NOALBS config', accept:{'application/json':['.json']}}]});
+    await openHandle(handle);
+  } catch(e) {
+    if (e.name !== 'AbortError') showToast('Could not open file: ' + e.message, 'error');
+  }
+}
+async function openHandle(handle) { const f = await handle.getFile(); openText(await f.text(), f.name, handle); }
+const isEnvName = name => /(^|\.)env$/i.test(name);
+
+function openText(text, name, handle) {
+  if (isEnvName(name)) return openEnvText(text, handle);
+  if (isDirty() && !confirm('You have unsaved changes. Open another config and lose them?')) return;
+  let c;
+  try { c = JSON.parse(text); } catch(err) { showToast(`${name} isn't valid JSON: ${err.message}`, 'error'); return; }
+  if (!isObj(c)) { showToast(`${name} doesn't look like a NOALBS config`, 'error'); return; }
+  fileHandle = handle || null; fileName = name;
+  loadConfig(c);
+  hideDrop();
+  showToast(`Opened ${name}`, 'success');
+  doRefresh();
+}
+function hideDrop() { $('dropZone').hidden = true; }
+
+$('fileInput').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  openText(await f.text(), f.name, null);
+};
+
+// Drag & drop anywhere — grab a writable handle where the browser supports it
+const dz = $('dropZone');
+dz.addEventListener('click', openFile);
+document.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragging'); dz.classList.add('over'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) { document.body.classList.remove('dragging'); dz.classList.remove('over'); } });
+document.addEventListener('drop', async e => {
+  e.preventDefault();
+  document.body.classList.remove('dragging'); dz.classList.remove('over');
+  const item = e.dataTransfer.items?.[0], file = e.dataTransfer.files[0];
+  const pending = item?.getAsFileSystemHandle?.();
+  try { const h = await pending; if (h?.kind === 'file') return await openHandle(h); } catch(_) {}
+  if (file) openText(await file.text(), file.name, null);  // read-only fallback: Save asks where to save
+});
+
+// ─── Build config object ──────────────────────────────────────────────────────
+// SwitchingScenes needs all three names, so blanks fall back to the global scenes
+const fillScenes = (sc, global) => sc && (sc.normal || sc.low || sc.offline)
+  ? {normal: sc.normal || global.normal, low: sc.low || global.low, offline: sc.offline || global.offline} : null;
+
+function cleanServer(s, global) {
+  const out = clone(s);
+  delete out._open;
+  (TYPE_FIELDS[out.streamServer.type]||[]).forEach(f => { if (f.opt && isBlank(getN(out.streamServer, f.k))) delN(out.streamServer, f.k); });
+  if (isObj(out.streamServer.auth) && !Object.keys(out.streamServer.auth).length) delete out.streamServer.auth;
+  out.overrideScenes = fillScenes(out.overrideScenes, global);
+  if (out.dependsOn?.name) out.dependsOn.backupScenes = fillScenes(out.dependsOn.backupScenes, global) || {...global};
+  else out.dependsOn = null;
+  return out;
+}
+
+function kickOut() {
+  const k = {...kickCfg, channelId: gn('kick-channelId'), chatroomId: gn('kick-chatroomId'), useIrlproxy: gb('kick-irlproxy')};
+  Object.keys(k).forEach(x => { if (k[x] === null) delete k[x]; });
+  if (!k.useIrlproxy && !('useIrlproxy' in kickCfg)) delete k.useIrlproxy;
+  return k;
+}
+
+function buildConfig() {
+  // Start from the opened file so settings this editor doesn't show (logToFile, user.id, …) survive
+  const c = clone(base);
+  const scenes = {normal:g('scene-normal'), low:g('scene-low'), offline:g('scene-offline')};
+  c.user = {...c.user, id: c.user?.id ?? null, name: g('user-name'), passwordHash: c.user?.passwordHash ?? null};
+  c.switcher = {...c.switcher,
+    bitrateSwitcherEnabled: gb('sw-bitrateEnabled'),
+    onlySwitchWhenStreaming: gb('sw-onlyWhenStreaming'),
+    instantlySwitchOnRecover: gb('sw-instantRecover'),
+    autoSwitchNotification: gb('sw-notification'),
+    retryAttempts: gi('sw-retryAttempts',5),
+    triggers: {...c.switcher?.triggers, low:gn('trig-low'), rtt:gn('trig-rtt'), offline:gn('trig-offline'), rttOffline:gn('trig-rttOffline')},
+    switchingScenes: {...c.switcher?.switchingScenes, ...scenes},
+    streamServers: servers.map(s => cleanServer(s, scenes))
+  };
+  c.software = {...c.software, type: c.software?.type || 'Obs', host: g('sw-host').trim(), password: g('sw-password'), port: gi('sw-port',4455)};
+  const collections = {};
+  colls.forEach(x => { if (x.key.trim()) collections[x.key.trim()] = {profile:x.profile, collection:x.collection}; });
+  if (Object.keys(collections).length) c.software.collections = collections; else delete c.software.collections;
+  c.chat = {...c.chat,
+    platform: g('chat-platform') === 'Kick' ? {Kick: kickOut()} : 'Twitch',
+    username: g('chat-username').trim().replace(/^@/,''),
+    admins: [...admins], ignoreUsers: [...ignoreUsers],
+    language: g('chat-lang'), prefix: g('chat-prefix')||'!',
+    enablePublicCommands: gb('chat-pub'), enableModCommands: gb('chat-mod'),
+    enableAutoStopStreamOnHostOrRaid: gb('chat-autoStop'),
+    announceRaidOnAutoStop: gb('chat-announceRaid'),
+    commands: clone(cmdData)
+  };
+  c.optionalScenes = {...c.optionalScenes,
+    starting: g('opt-starting')||null, ending: g('opt-ending')||null,
+    privacy: g('opt-privacy')||null, refresh: g('opt-refresh')||null
+  };
+  c.optionalOptions = {...c.optionalOptions,
+    twitchTranscodingCheck: gb('opt-transCode'),
+    twitchTranscodingRetries: gi('opt-tcRetries',5),
+    twitchTranscodingDelaySeconds: gi('opt-tcDelay',15),
+    offlineTimeout: gn('opt-offTimeout'),
+    recordWhileStreaming: gb('opt-record'),
+    switchToStartingSceneOnStreamStart: gb('opt-toStart'),
+    switchFromStartingSceneToLiveScene: gb('opt-fromStart')
+  };
+  return c;
+}
+
+// ─── Checks ──────────────────────────────────────────────────────────────────
+function findIssues(c) {
+  const out = [], add = (tab, msg, el, i) => out.push({tab, msg, el, i});
+  const sw = c.switcher, t = sw.triggers;
+  if (!c.software.host) add('setup', 'OBS host is empty', $('sw-host'));
+  colls.forEach(x => { if (x.key.trim() && (!x.profile || !x.collection)) add('setup', `Collection “${x.key}” needs both an OBS profile and a scene collection`); });
+  ['normal','low','offline'].forEach(k => { if (!sw.switchingScenes[k]) add('switcher', `${SCENE_NAME[k]} scene name is empty`, $('scene-'+k)); });
+  if (t.low != null && t.offline != null && t.offline >= t.low) add('switcher', `Offline bitrate trigger (${t.offline}) should be lower than the low bitrate trigger (${t.low})`, $('trig-offline'));
+  if (t.rtt != null && t.rttOffline != null && t.rttOffline <= t.rtt) add('switcher', `Offline RTT trigger (${t.rttOffline}) should be higher than the low RTT trigger (${t.rtt})`, $('trig-rttOffline'));
+  if (!servers.length) add('servers', 'No stream servers yet: add the server your stream comes in through');
+  else if (!servers.some(s => s.enabled)) add('servers', 'Every stream server is turned off');
+  servers.forEach((s, i) => {
+    const ss = s.streamServer, who = `“${s.name || 'Unnamed'}”`;
+    if (!s.name) add('servers', 'A server has no name', null, i);
+    missingFields(s).forEach(f => add('servers', `${who}: ${f.l} is empty`, null, i));
+    if (s.name && servers.findIndex(o => o.name === s.name) !== i) add('servers', `${who}: two servers have this name`, null, i);
+    const dep = s.dependsOn?.name;
+    if (dep && !servers.some(o => o !== s && o.name === dep)) add('servers', `${who}: depends on “${dep}”, which doesn't exist`, null, i);
+    if (isObj(ss.auth) && !ss.auth.username !== !ss.auth.password) add('servers', `${who}: fill in both auth username and password, or neither`, null, i);
+    if (ss.type === 'Irlhosting' && !ss.publisher && !(ss.application && ss.key)) add('servers', `${who}: fill in Publisher, or Application and Stream Key`, null, i);
+  });
+  if (!c.chat.username) add('chat', "Your channel name is empty, so NOALBS won't know which chat to join", $('chat-username'));
+  const oo = c.optionalOptions;
+  if ((oo.switchToStartingSceneOnStreamStart || oo.switchFromStartingSceneToLiveScene) && !c.optionalScenes.starting)
+    add('optional', 'Starting scene switching is on, but no Starting scene is set', $('opt-starting'));
+  checkObsNames(add);
+  return out;
+}
+// After connecting to OBS, flag scene names OBS doesn't have
+function checkObsNames(add) {
+  document.querySelectorAll('input[list="obs-scenes"]').forEach(el => {
+    const bad = !!(obsLists && el.value && !obsLists.scenes.includes(el.value));
+    el.classList.toggle('warn', bad);
+    if (!bad) return;
+    const near = obsLists.scenes.find(s => s.toLowerCase() === el.value.toLowerCase());
+    const card = el.closest('.scard');
+    add(el.closest('.panel').id.slice(6), `Scene “${el.value}” isn't in OBS${near ? ` (did you mean “${near}”?)` : ''}`, el, card ? +card.id.slice(3) : undefined);
+  });
+}
+function renderIssues(list) {
+  issues = list;
+  $('issues').hidden = !list.length;
+  $('issuesSum').textContent = `⚠ ${list.length} thing${list.length === 1 ? '' : 's'} to check`;
+  $('issuesList').innerHTML = list.map((x, n) => `<li><button class="issue" onclick="goIssue(${n})"><em>${TAB_LABEL[x.tab]} ›</em> ${esc(x.msg)}</button></li>`).join('');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('has-issues', list.some(x => x.tab === t.dataset.tab)));
+}
+function goIssue(n) {
+  const x = issues[n]; if (!x) return;
+  switchTab(x.tab);
+  if (x.i != null && servers[x.i]) { servers[x.i]._open = true; $('sc-'+x.i)?.classList.add('open'); }
+  const target = x.el || (x.i != null ? $('sc-'+x.i) : null);
+  if (target) setTimeout(() => { target.scrollIntoView({behavior:'smooth', block:'center'}); x.el?.focus({preventScroll:true}); }, 0);
+}
+
+// ─── Unsaved changes ─────────────────────────────────────────────────────────
+const isDirty = () => JSON.stringify(buildConfig()) !== lastSaved;
+const isEnvDirty = () => buildEnvText() !== lastSavedEnv;
+let refreshT;
+function refresh() { clearTimeout(refreshT); refreshT = setTimeout(doRefresh, 120); }
+function doRefresh() {
+  const c = buildConfig(), dirty = JSON.stringify(c) !== lastSaved;
+  $('fileStatus').innerHTML = `<b>${esc(fileName || 'New config')}</b>` +
+    (dirty ? '<span class="dirty">● unsaved changes</span>' : `<span>${fileName ? 'no changes' : 'not saved yet'}</span>`);
+  $('envSaveTxt').textContent = `${FSA ? 'Save' : 'Download'} .env${isEnvDirty() ? ' •' : ''}`;
+  servers.forEach((_, i) => { updateHdr(i); fillDepends(i); });
+  renderIssues(findIssues(c));
+}
+document.querySelector('.main').addEventListener('input', refresh);
+document.querySelector('.main').addEventListener('change', refresh);
+window.addEventListener('beforeunload', e => { if (isDirty() || isEnvDirty()) { e.preventDefault(); e.returnValue = ''; } });
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); activeTab === 'env' ? saveEnvFile() : saveConfig(); }
+});
+
+// ─── Save ─────────────────────────────────────────────────────────────────────
+function download(text, name, type) {
+  const url = URL.createObjectURL(new Blob([text], {type}));
+  Object.assign(document.createElement('a'), {href:url, download:name}).click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function saveConfig() {
+  const c = buildConfig(), json = JSON.stringify(c, null, 2) + '\n';
+  // No file to write back to yet (new config, or a read-only drop): ask where to save
+  if (!fileHandle && 'showSaveFilePicker' in window) {
+    try { fileHandle = await window.showSaveFilePicker({suggestedName: fileName || 'config.json', types:[{description:'NOALBS config', accept:{'application/json':['.json']}}]}); }
+    catch(e) { if (e.name === 'AbortError') return; }
+  }
+  try {
+    if (fileHandle) {
+      const writable = await fileHandle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      fileName = fileHandle.name;
+    } else {
+      fileName = fileName || 'config.json';
+      download(json, fileName, 'application/json');
+    }
+  } catch(e) {
+    showToast('Could not save: ' + e.message, 'error');
+    return;
+  }
+  lastSaved = JSON.stringify(c);
+  const n = findIssues(c).length;
+  showToast(`${fileHandle ? 'Saved' : 'Downloaded'} ${fileName}${n ? ` · ${n} thing${n === 1 ? '' : 's'} still to check` : ''}`, n ? 'warn' : 'success');
+  hideDrop();
+  doRefresh();
+}
+
+// ─── .env File ───────────────────────────────────────────────────────────────
+// Fields this editor shows; every other line in the file is written back untouched
+const ENV_KEYS = {'env-username':'TWITCH_BOT_USERNAME', 'env-oauth':'TWITCH_BOT_OAUTH', 'env-channel':'TWITCH_CHANNEL', 'env-refresh':'TWITCH_BOT_REFRESH_TOKEN'};
+let envHandle = null, envLines = [], lastSavedEnv = '';
+
+const envKey = line => { const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/); return m ? m[1] : null; };
+function parseEnv(text) {
+  const map = {};
+  text.split(/\r?\n/).forEach(line => {
+    const k = envKey(line); if (!k) return;
+    map[k] = line.slice(line.indexOf('=')+1).trim().replace(/^(['"])(.*)\1$/, '$2');
+  });
+  return map;
+}
+
+function buildEnvText() {
+  const vals = {};
+  Object.entries(ENV_KEYS).forEach(([id,k]) => { vals[k] = g(id).trim(); });
+  const done = new Set(), out = [];
+  envLines.forEach(line => {
+    const k = envKey(line);
+    if (!(k in vals)) { out.push(line); return; }
+    if (!done.has(k) && vals[k]) out.push(`${k}=${vals[k]}`);
+    done.add(k);
+  });
+  Object.entries(vals).forEach(([k,val]) => { if (!done.has(k) && val) out.push(`${k}=${val}`); });
+  return out.length ? out.join('\n') + '\n' : '';
+}
+
+function loadEnv(text) {
+  envLines = text.split(/\r?\n/);
+  if (envLines[envLines.length-1] === '') envLines.pop();
+  const map = parseEnv(text);
+  Object.entries(ENV_KEYS).forEach(([id,k]) => v(id, map[k]||''));
+  lastSavedEnv = buildEnvText();
+  const known = Object.values(ENV_KEYS), extra = envLines.filter(l => { const k = envKey(l); return k && !known.includes(k); }).length;
+  $('envExtra').textContent = extra ? `${extra} other setting${extra === 1 ? '' : 's'} in this file (like CONFIG_DIR or LOG_DIR) will be kept exactly as ${extra === 1 ? 'it is' : 'they are'}.` : '';
+}
+
+function openEnvText(text, handle) {
+  if (isEnvDirty() && !confirm('You have unsaved .env changes. Open another .env and lose them?')) return;
+  envHandle = handle || null;
+  loadEnv(text);
+  switchTab('env');
+  showToast('.env loaded', 'success');
+  doRefresh();
+}
+
+async function openEnvFile() {
+  if (!FSA) return $('envFileInput').click();
+  try {
+    const [handle] = await window.showOpenFilePicker({ multiple: false });
+    const f = await handle.getFile();
+    openEnvText(await f.text(), handle);
+  } catch(e) {
+    if (e.name !== 'AbortError') showToast('Could not open .env: ' + e.message, 'error');
+  }
+}
+
+async function saveEnvFile() {
+  const text = buildEnvText();
+  if (!envHandle && 'showSaveFilePicker' in window) {
+    try { envHandle = await window.showSaveFilePicker({suggestedName:'.env'}); }
+    catch(e) { if (e.name === 'AbortError') return; }
+  }
+  try {
+    if (envHandle) { const w = await envHandle.createWritable(); await w.write(text); await w.close(); }
+    else download(text, '.env', 'text/plain');
+  } catch(e) { showToast('Could not save .env: ' + e.message, 'error'); return; }
+  lastSavedEnv = text;
+  showToast(envHandle ? 'Saved ' + envHandle.name : '.env downloaded (check it is named exactly .env)', 'success');
+  doRefresh();
+}
+
+function fixOauth(el) {
+  const val = el.value.trim();
+  if (val && !/^oauth:/i.test(val)) { el.value = 'oauth:' + val; showToast('Added the oauth: prefix NOALBS needs', 'success'); refresh(); }
+}
+
+$('envFileInput').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  openEnvText(await f.text(), null);
+};
+
+// ─── OBS connection test (obs-websocket v5) ──────────────────────────────────
+async function sha256b64(s) {
+  if (!crypto.subtle) throw new Error('This browser blocked the password check. Open the editor straight from the file on your PC.');
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+  return btoa(String.fromCharCode(...h));
+}
+
+function obsConnect(host, port, password) {
+  return new Promise((resolve, reject) => {
+    let ws;
+    try { ws = new WebSocket(`ws://${host}:${port}`); } catch(_) { return reject(new Error('That host or port is not valid')); }
+    const pending = {}; let n = 0, done = false;
+    const finish = (err, val) => { if (done) return; done = true; clearTimeout(timer); ws.close(); err ? reject(err) : resolve(val); };
+    const timer = setTimeout(() => finish(new Error('OBS didn\'t answer within 6 seconds. Is the WebSocket server enabled in OBS 28 or newer?')), 6000);
+    const req = type => new Promise((res, rej) => {
+      const requestId = 'r' + (++n);
+      pending[requestId] = {res, rej};
+      ws.send(JSON.stringify({op:6, d:{requestType:type, requestId}}));
+    });
+    ws.onmessage = async ev => {
+      try {
+        const m = JSON.parse(ev.data);
+        if (m.op === 0) {          // Hello → Identify
+          const d = {rpcVersion:1};
+          if (m.d.authentication) {
+            if (!password) return finish(new Error('OBS needs a password. Fill in the Password field and try again.'));
+            const {salt, challenge} = m.d.authentication;
+            d.authentication = await sha256b64(await sha256b64(password + salt) + challenge);
+          }
+          ws.send(JSON.stringify({op:1, d}));
+        } else if (m.op === 2) {   // Identified
+          const [ver, sc, inp, prof, col] = await Promise.all(['GetVersion','GetSceneList','GetInputList','GetProfileList','GetSceneCollectionList'].map(req));
+          finish(null, {
+            version: ver.obsVersion,
+            scenes: sc.scenes.sort((a,b) => b.sceneIndex - a.sceneIndex).map(s => s.sceneName),
+            inputs: inp.inputs.map(x => x.inputName),
+            profiles: prof.profiles,
+            collections: col.sceneCollections
+          });
+        } else if (m.op === 7) {   // RequestResponse
+          const p = pending[m.d.requestId]; if (!p) return;
+          delete pending[m.d.requestId];
+          m.d.requestStatus.result ? p.res(m.d.responseData || {}) : p.rej(new Error(m.d.requestStatus.comment || m.d.requestType + ' failed'));
+        }
+      } catch(e) { finish(e); }
+    };
+    ws.onclose = e => finish(new Error(
+      e.code === 4009 ? 'OBS rejected the password.' :
+      e.code === 4010 ? 'This OBS is too old. NOALBS needs OBS 28 or newer.' :
+      `Couldn't reach OBS at ${host}:${port}. Is OBS open, with Tools → WebSocket Server Settings → Enable turned on?`));
+  });
+}
+
+function fillList(id, names) { $(id).innerHTML = names.map(n => `<option value="${esc(n)}">`).join(''); }
+function setObsStatus(msg, kind) { const el = $('obsStatus'); el.textContent = msg; el.className = 'help' + (kind ? ' obs-' + kind : ''); }
+
+async function fetchObs() {
+  const btn = $('obsBtn');
+  btn.disabled = true;
+  setObsStatus('Connecting to OBS…');
+  try {
+    const r = await obsConnect(g('sw-host').trim() || 'localhost', gi('sw-port',4455), g('sw-password'));
+    obsLists = r;
+    fillList('obs-scenes', r.scenes); fillList('obs-inputs', r.inputs);
+    fillList('obs-profiles', r.profiles); fillList('obs-colls', r.collections);
+    setObsStatus(`✓ Connected to OBS ${r.version}. Found ${r.scenes.length} scenes, and scene fields now suggest them as you type.`, 'ok');
+    doRefresh();
+  } catch(e) {
+    setObsStatus(e.message, 'err');
+  }
+  btn.disabled = false;
+}
+
+let toastT;
+function showToast(msg,type='success'){
+  const t=$('toast');
+  t.textContent=({success:'✓ ', error:'✕ ', warn:'⚠ '}[type]||'')+msg;
+  t.className=`toast ${type} show`;
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'), type==='error'?6000:3500);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+$('chat-lang').innerHTML = Object.entries(LANGS).map(([k,name]) => `<option value="${k}">${name} (${k})</option>`).join('');
+document.querySelectorAll('[data-eye]').forEach(b => { b.innerHTML = EYE; b.title = 'Show/hide'; b.onclick = () => togglePw(b.dataset.eye, b); });
+$('cmd-add').onchange = e => {
+  const n = e.target.value; if (!n) return;
+  cmdData[n] = {permission:null, userPermissions:[], alias:[]};
+  renderCmds(); refresh();
+};
+$('saveBtnTxt').textContent = FSA ? 'Save config.json' : 'Download config.json';
+initTag('admins-box','admins-in');
+initTag('ignore-box','ignore-in');
+loadConfig(clone(DEFAULT_CONFIG));
+lastSavedEnv = buildEnvText();
+doRefresh();
+</script>
+</body>
+</html>
