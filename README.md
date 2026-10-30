@@ -12,9 +12,10 @@ It's a single HTML file that runs in your browser: there's nothing to install, a
 2. **Open it** by double-clicking the downloaded file. Use Chrome or Edge if you can (see [Browsers](#browsers)). If it opens in a different browser, right-click the file and choose **Open with**.
 3. **Close NOALBS** while you edit.
 4. **Open your config.** Click **Open** and pick the `config.json` in your NOALBS folder, or drag the file onto the page. No config yet? Click **Start a new one**.
-5. **Work through the tabs.** If a **things to check** list appears at the top, fix what it lists. Click an item to jump to it.
-6. **Save** with the **Save config.json** button or **Ctrl+S**.
-7. **Start NOALBS again** so it loads your changes.
+5. **Connect to OBS (optional)** with the **Connect OBS** button at the top, so you can pick scene names from dropdowns instead of typing them. See [Pick scenes from OBS](#pick-scenes-from-obs-optional).
+6. **Work through the tabs.** If a **things to check** list appears at the top, fix what it lists. Click an item to jump to it.
+7. **Save** with the **Save config.json** button or **Ctrl+S**.
+8. **Start NOALBS again** so it loads your changes.
 
 ## The tabs
 
@@ -38,14 +39,18 @@ NOALBS reads the login for the account it chats as from a `.env` file in your NO
 
 Other lines in the file, such as `CONFIG_DIR` or `LOG_DIR`, are kept as they are. Keep `.env` private: anyone with the token can post as your bot.
 
-## Load scene names from OBS (optional)
+## Pick scenes from OBS (optional)
 
-Scene names in the config must match OBS exactly, capital letters included. To avoid typos:
+Scene names in the config must match OBS exactly, capital letters included. Instead of typing them, you can pick them from your real OBS scenes:
 
 1. In OBS (version 28 or newer), open **Tools → WebSocket Server Settings**, tick **Enable WebSocket server**, and note the port and password.
-2. On the editor's **🔧 Setup** tab, enter the same host, port and password, then click **Test connection & load scene names**.
+2. On the editor's **🔧 Setup** tab, enter the same host, port and password, then click **Connect to OBS** (or the **Connect OBS** button at the top of the page).
 
-Scene fields then suggest your real scene names as you type, and the things-to-check list flags any name OBS doesn't have.
+Every scene field becomes a dropdown of your OBS scenes, and the OBS source, profile and scene collection fields list what OBS has too. If your config names something OBS doesn't have, it stays selected, marked "not in OBS", and shows up in the things-to-check list.
+
+- **Added a scene in OBS?** Click the OBS button at the top of the page to reload the lists.
+- **Next time**, the editor reconnects by itself when you open a config.
+- **Want to type names instead?** Click **Disconnect** on the Setup tab.
 
 ## Browsers
 
@@ -60,7 +65,7 @@ If a downloaded `.env` ends up with a different name (like `env` or `.env.txt`),
 
 - **Nothing gets dropped.** Settings the editor doesn't show, such as `logToFile`, are saved back unchanged, and so are stream server types it doesn't recognise.
 - **Allowed values match NOALBS.** Chat languages, server types and command names were checked against the NOALBS v2 source code.
-- **Your files stay private.** The page only goes online to load its fonts from Google Fonts, and to reach OBS at the address you enter when you use the test button.
+- **Your files stay private.** The page only goes online to load its fonts from Google Fonts, and to reach OBS at the address you enter when you connect.
 
 ## Troubleshooting
 

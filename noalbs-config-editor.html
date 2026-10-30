@@ -73,7 +73,8 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:va
 input[type=text],input[type=password],input[type=number],select{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px;transition:border-color .15s;width:100%}
 input:focus,select:focus{outline:none;border-color:var(--accent)}
 input:required:placeholder-shown{border-color:rgba(227,179,65,.45)}
-input.warn{border-color:var(--orange)}
+input.warn,select.warn{border-color:var(--orange)}
+select:required:invalid{border-color:rgba(227,179,65,.45)}
 input,select,.scard{scroll-margin-top:90px}
 select option{background:var(--surface2)}
 .empty{color:var(--muted);font-size:13px;padding:4px 0}
@@ -135,10 +136,15 @@ select option{background:var(--surface2)}
 .hint{margin-top:10px;padding:10px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.8}
 .hint strong{color:var(--text)}
 
-/* OBS connection test */
+/* OBS connection */
 .obs-row{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
 .obs-row .help{flex:1;min-width:220px}
 .obs-ok{color:var(--green)}.obs-err{color:var(--red)}
+.obs-hint{margin-top:10px}
+body.obs-on .obs-hint{display:none}
+.odot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.obs-chip.on .odot{background:var(--green)}
+.obs-chip.err .odot{background:var(--red)}
 
 /* Issues list */
 .issues{background:rgba(227,179,65,.06);border:1px solid rgba(227,179,65,.3);border-radius:var(--radius);margin-bottom:14px}
@@ -184,7 +190,7 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
 @media (max-width:640px){
   .header{flex-wrap:wrap;padding:12px 16px}
   .hfile{order:3;width:100%;margin-left:0}
-  .hactions{margin-left:auto}
+  .hactions{margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
   .tabs{overflow-x:auto}
   .tab{flex:0 0 auto}
   .cmd-grid,.crow{grid-template-columns:1fr}
@@ -197,7 +203,6 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept=".json">
 <input type="file" id="envFileInput">
-<datalist id="obs-scenes"></datalist><datalist id="obs-inputs"></datalist><datalist id="obs-profiles"></datalist><datalist id="obs-colls"></datalist>
 
 <div class="header">
   <div class="hlogo">
@@ -211,6 +216,7 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
   </div>
   <div class="hfile" id="fileStatus"></div>
   <div class="hactions">
+    <button class="btn btn-secondary obs-chip" id="obsChip" onclick="fetchObs()"><span class="odot"></span><span id="obsChipTxt">Connect OBS</span></button>
     <button class="btn btn-secondary" onclick="openFile()" title="Open a config.json">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Open
@@ -266,8 +272,9 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
         </div>
       </div>
       <div class="obs-row">
-        <button class="btn btn-secondary" id="obsBtn" onclick="fetchObs()">🔌 Test connection &amp; load scene names</button>
-        <span class="help" id="obsStatus">Find these in OBS under <strong>Tools → WebSocket Server Settings</strong>. Connecting lets every scene field suggest your real OBS scene names.</span>
+        <button class="btn btn-secondary" id="obsBtn" onclick="fetchObs()">🔌 Connect to OBS</button>
+        <button class="btn btn-ghost" id="obsOff" onclick="disconnectObs()" hidden>Disconnect</button>
+        <span class="help" id="obsStatus">Find these in OBS under <strong>Tools → WebSocket Server Settings</strong>. Connect to pick scenes, sources, profiles and scene collections from dropdowns instead of typing them.</span>
       </div>
     </div>
 
@@ -324,17 +331,18 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
       <div class="fg">
         <div class="field">
           <label for="scene-normal">🟢 Normal / Live Scene</label>
-          <input type="text" id="scene-normal" placeholder="LIVE" list="obs-scenes" required>
+          <input type="text" id="scene-normal" placeholder="LIVE" data-obs="scenes" required>
         </div>
         <div class="field">
           <label for="scene-low">🟡 Low Bitrate Scene</label>
-          <input type="text" id="scene-low" placeholder="LOW" list="obs-scenes" required>
+          <input type="text" id="scene-low" placeholder="LOW" data-obs="scenes" required>
         </div>
         <div class="field">
           <label for="scene-offline">🔴 Offline / Disconnected Scene</label>
-          <input type="text" id="scene-offline" placeholder="BRB" list="obs-scenes" required>
+          <input type="text" id="scene-offline" placeholder="BRB" data-obs="scenes" required>
         </div>
       </div>
+      <div class="help obs-hint"><a href="#" onclick="event.preventDefault();fetchObs()">Connect to OBS</a> to pick these from a list of your scenes instead of typing them.</div>
     </div>
 
     <div class="section">
@@ -373,6 +381,7 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
       <div class="stitle">🌐 Stream Servers <span>Where your stream comes in. NOALBS watches every enabled server and uses the live one with the lowest priority number.</span></div>
       <div id="srv-list"></div>
       <button class="btn btn-add" onclick="addServer()" style="margin-top:12px">+ Add Stream Server</button>
+      <div class="help obs-hint"><a href="#" onclick="event.preventDefault();fetchObs()">Connect to OBS</a> to pick override and backup scenes from a list.</div>
     </div>
   </div>
 
@@ -472,21 +481,22 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
       <div class="fg">
         <div class="field">
           <label for="opt-starting">Starting Scene</label>
-          <input type="text" id="opt-starting" placeholder="STARTING" list="obs-scenes">
+          <input type="text" id="opt-starting" placeholder="STARTING" data-obs="scenes" data-empty="None">
         </div>
         <div class="field">
           <label for="opt-ending">Ending Scene</label>
-          <input type="text" id="opt-ending" placeholder="ENDING" list="obs-scenes">
+          <input type="text" id="opt-ending" placeholder="ENDING" data-obs="scenes" data-empty="None">
         </div>
         <div class="field">
           <label for="opt-privacy">Privacy Scene</label>
-          <input type="text" id="opt-privacy" placeholder="PRIVACY" list="obs-scenes">
+          <input type="text" id="opt-privacy" placeholder="PRIVACY" data-obs="scenes" data-empty="None">
         </div>
         <div class="field">
           <label for="opt-refresh">Refresh Scene</label>
-          <input type="text" id="opt-refresh" placeholder="REFRESH" list="obs-scenes">
+          <input type="text" id="opt-refresh" placeholder="REFRESH" data-obs="scenes" data-empty="None">
         </div>
       </div>
+      <div class="help obs-hint"><a href="#" onclick="event.preventDefault();fetchObs()">Connect to OBS</a> to pick these from a list of your scenes.</div>
     </div>
 
     <div class="section">
@@ -581,7 +591,7 @@ select.cmd-add{width:auto;margin-top:12px;font-family:var(--font)}
 // ─── Constants ───────────────────────────────────────────────────────────────
 // Stream server types and their streamServer fields, as NOALBS v2 reads them (src/stream_servers).
 // opt = optional (left out of the file when blank), pw = secret, num = number, bool = on/off,
-// d = value filled in when switching to this type, list = datalist for suggestions
+// d = value filled in when switching to this type, obs = OBS list to pick from once connected
 const TYPE_FIELDS = {
   Belabox:        [{k:'statsUrl',l:'Stats URL',p:'http://use.srt.belabox.net:8080/STREAMID'},{k:'publisher',l:'Publisher / Stream ID',p:'STREAMID'}],
   SrtLiveServer:  [{k:'statsUrl',l:'Stats URL',p:'http://127.0.0.1:8181/stats'},{k:'publisher',l:'Publisher',p:'publish/live/feed1'},{k:'apiKey',l:'API Key (irl-srt-server only)',opt:1,pw:1}],
@@ -595,7 +605,7 @@ const TYPE_FIELDS = {
   OpenRTMP:       [{k:'statsUrl',l:'Stats URL (including ?key=)',p:'http://hostname:8080/stats?key=sts_...'}],
   Rist:           [{k:'statsUrl',l:'Stats URL',p:'http://localhost:8681/stats'},{k:'multipath',l:'Multipath (bonded connection)',opt:1,bool:1}],
   WebSocket:      [{k:'url',l:'WebSocket URL',p:'ws://127.0.0.1/ws-stats'},{k:'feed',l:'Feed',p:'feed1',opt:1},{k:'token',l:'Token',opt:1,pw:1},{k:'reconnectIntervalMs',l:'Reconnect Interval (ms)',p:'1000',opt:1,num:1},{k:'staleTimeoutMs',l:'Stale Timeout (ms)',p:'3000',opt:1,num:1}],
-  Obs:            [{k:'source',l:'OBS Source Name',p:'Media Source',list:'obs-inputs'}]
+  Obs:            [{k:'source',l:'OBS Source Name',p:'Media Source',obs:'inputs'}]
 };
 const TYPES = Object.keys(TYPE_FIELDS);
 const TYPE_BADGE = {Belabox:'b-orange',Irlhosting:'b-orange',Nginx:'b-blue',NodeMediaServer:'b-green',SrtLiveServer:'b-blue',Mediamtx:'b-blue',Xiu:'b-gray',Obs:'b-red',Nimble:'b-blue',OpenIRL:'b-blue',OpenRTMP:'b-blue',Rist:'b-blue',WebSocket:'b-gray'};
@@ -704,7 +714,7 @@ function setN(obj,key,val){ const [a,b]=key.split('.'); if(b) (obj[a]=obj[a]||{}
 function delN(obj,key){ const [a,b]=key.split('.'); if(b){ if(obj[a]) delete obj[a][b]; } else delete obj[a]; }
 const splitList = (s, lower) => s.split(',').map(x => x.trim().replace(/^@/,'')).map(x => lower ? x.toLowerCase() : x).filter(Boolean);
 
-function v(id,val){ const el=$(id); if(el) el.value=val; }
+function v(id,val){ const el=$(id); if(!el) return; if(el.tagName==='SELECT' && el.dataset.obs) el.innerHTML=pickerOptions(el.dataset.obs, val, el.dataset.empty); el.value=val; }
 function chk(id,val){ const el=$(id); if(el) el.checked=!!val; }
 function g(id){ return $(id)?.value||''; }
 function gb(id){ return $(id)?.checked||false; }
@@ -757,10 +767,11 @@ function renderColls() {
   el.innerHTML = colls.map((c,i) => `
     <div class="crow">
       <div class="field"><label>Name for !collection</label><input type="text" value="${esc(c.key)}" oninput="colls[${i}].key=this.value" placeholder="twitch"></div>
-      <div class="field"><label>OBS Profile</label><input type="text" value="${esc(c.profile)}" oninput="colls[${i}].profile=this.value" placeholder="twitch" list="obs-profiles"></div>
-      <div class="field"><label>Scene Collection</label><input type="text" value="${esc(c.collection)}" oninput="colls[${i}].collection=this.value" placeholder="twitch_scenes" list="obs-colls"></div>
+      <div class="field"><label>OBS Profile</label><input type="text" value="${esc(c.profile)}" oninput="colls[${i}].profile=this.value" placeholder="twitch" data-obs="profiles"></div>
+      <div class="field"><label>Scene Collection</label><input type="text" value="${esc(c.collection)}" oninput="colls[${i}].collection=this.value" placeholder="twitch_scenes" data-obs="collections"></div>
       <button class="btn btn-danger" title="Remove" onclick="colls.splice(${i},1);renderColls();refresh()">✕</button>
     </div>`).join('');
+  applyObsPickers(el);
 }
 function addCollection() { colls.push({key:'',profile:'',collection:''}); renderColls(); refresh(); }
 
@@ -769,6 +780,7 @@ function renderServers() {
   const el = $('srv-list');
   if(!servers.length){ el.innerHTML='<div class="empty center">No servers yet. Click "+ Add Stream Server" to add the one your stream comes in through.</div>'; return; }
   el.innerHTML = servers.map((s,i) => buildCard(s,i)).join('');
+  applyObsPickers(el);
 }
 
 const missingFields = s => (TYPE_FIELDS[s.streamServer.type]||[]).filter(f => !f.opt && isBlank(getN(s.streamServer, f.k)));
@@ -821,7 +833,7 @@ function buildCard(s, i) {
       <div class="sub">
         <div class="subtitle">Override Scenes <span class="opt">— leave blank to use the scenes from the Switcher tab</span></div>
         <div class="fg">
-          ${['normal','low','offline'].map(k => `<div class="field"><label>${SCENE_ICON[k]} ${SCENE_NAME[k]} Override</label><input type="text" value="${esc(s.overrideScenes?.[k])}" oninput="setSO(${i},'${k}',this.value)" placeholder="Use global" list="obs-scenes"></div>`).join('')}
+          ${['normal','low','offline'].map(k => `<div class="field"><label>${SCENE_ICON[k]} ${SCENE_NAME[k]} Override</label><input type="text" value="${esc(s.overrideScenes?.[k])}" oninput="setSO(${i},'${k}',this.value)" placeholder="Use global" data-obs="scenes" data-empty="Use global"></div>`).join('')}
         </div>
       </div>
 
@@ -829,7 +841,7 @@ function buildCard(s, i) {
         <div class="subtitle">Depends On <span class="opt">— watch another server and use backup scenes while it's offline</span></div>
         <div class="fg">
           <div class="field"><label>Depends on Server</label><select id="do-${i}" onchange="setDO(${i},'name',this.value);renderServers();refresh()">${dependsOptions(i)}</select></div>
-          ${dep ? ['normal','low','offline'].map(k => `<div class="field"><label>Backup ${SCENE_NAME[k]} Scene</label><input type="text" value="${esc(s.dependsOn?.backupScenes?.[k])}" oninput="setDO(${i},'${k}',this.value)" placeholder="Use global" list="obs-scenes"></div>`).join('') : ''}
+          ${dep ? ['normal','low','offline'].map(k => `<div class="field"><label>Backup ${SCENE_NAME[k]} Scene</label><input type="text" value="${esc(s.dependsOn?.backupScenes?.[k])}" oninput="setDO(${i},'${k}',this.value)" placeholder="Use global" data-obs="scenes" data-empty="Use global"></div>`).join('') : ''}
         </div>
       </div>
     </div>
@@ -839,7 +851,7 @@ function buildCard(s, i) {
 function fieldHtml(i, f, ss) {
   const id = `sf-${i}-${f.k.replace('.','_')}`, val = getN(ss, f.k);
   if (f.bool) return `<label class="field inline-toggle"><span class="toggle"><input type="checkbox"${val?' checked':''} onchange="setN(servers[${i}].streamServer,'${f.k}',this.checked)"><span class="tslider"></span></span><span>${esc(f.l)}</span></label>`;
-  const input = `<input type="${f.pw?'password':f.num?'number':'text'}" id="${id}" value="${esc(val)}" oninput="setN(servers[${i}].streamServer,'${f.k}',${f.num?"this.value===''?'':+this.value":'this.value'})" placeholder="${esc(f.p)}"${f.opt?'':' required'}${f.list?` list="${f.list}"`:''}>`;
+  const input = `<input type="${f.pw?'password':f.num?'number':'text'}" id="${id}" value="${esc(val)}" oninput="setN(servers[${i}].streamServer,'${f.k}',${f.num?"this.value===''?'':+this.value":'this.value'})" placeholder="${esc(f.p)}"${f.opt?'':' required'}${f.obs?` data-obs="${f.obs}"`:''}>`;
   return `<div class="field"><label for="${id}">${esc(f.l)}${f.opt?' <span class="opt">optional</span>':''}</label>${f.pw?`<div class="pw-wrap">${input}${eyeBtn(id)}</div>`:input}</div>`;
 }
 
@@ -1027,6 +1039,7 @@ function openText(text, name, handle) {
   hideDrop();
   showToast(`Opened ${name}`, 'success');
   doRefresh();
+  if (obsLists || wantsObs()) fetchObs(true);   // reconnect using this config's OBS settings
 }
 function hideDrop() { $('dropZone').hidden = true; }
 
@@ -1146,15 +1159,16 @@ function findIssues(c) {
   checkObsNames(add);
   return out;
 }
-// After connecting to OBS, flag scene names OBS doesn't have
+// After connecting to OBS, flag names OBS doesn't have
 function checkObsNames(add) {
-  document.querySelectorAll('input[list="obs-scenes"]').forEach(el => {
-    const bad = !!(obsLists && el.value && !obsLists.scenes.includes(el.value));
+  document.querySelectorAll('[data-obs]').forEach(el => {
+    const names = obsLists?.[el.dataset.obs], kind = OBS_KIND[el.dataset.obs];
+    const bad = !!(names && el.value && !names.includes(el.value));
     el.classList.toggle('warn', bad);
     if (!bad) return;
-    const near = obsLists.scenes.find(s => s.toLowerCase() === el.value.toLowerCase());
+    const near = names.find(s => s.toLowerCase() === el.value.toLowerCase());
     const card = el.closest('.scard');
-    add(el.closest('.panel').id.slice(6), `Scene “${el.value}” isn't in OBS${near ? ` (did you mean “${near}”?)` : ''}`, el, card ? +card.id.slice(3) : undefined);
+    add(el.closest('.panel').id.slice(6), `${kind[0].toUpperCase() + kind.slice(1)} “${el.value}” isn't in OBS${near ? ` (did you mean “${near}”?)` : ''}`, el, card ? +card.id.slice(3) : undefined);
   });
 }
 function renderIssues(list) {
@@ -1312,7 +1326,7 @@ $('envFileInput').onchange = async e => {
   openEnvText(await f.text(), null);
 };
 
-// ─── OBS connection test (obs-websocket v5) ──────────────────────────────────
+// ─── OBS connection (obs-websocket v5) ───────────────────────────────────────
 async function sha256b64(s) {
   if (!crypto.subtle) throw new Error('This browser blocked the password check. Open the editor straight from the file on your PC.');
   const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
@@ -1337,7 +1351,7 @@ function obsConnect(host, port, password) {
         if (m.op === 0) {          // Hello → Identify
           const d = {rpcVersion:1};
           if (m.d.authentication) {
-            if (!password) return finish(new Error('OBS needs a password. Fill in the Password field and try again.'));
+            if (!password) return finish(new Error('OBS needs a password. Enter it on the Setup tab and try again.'));
             const {salt, challenge} = m.d.authentication;
             d.authentication = await sha256b64(await sha256b64(password + salt) + challenge);
           }
@@ -1359,30 +1373,80 @@ function obsConnect(host, port, password) {
       } catch(e) { finish(e); }
     };
     ws.onclose = e => finish(new Error(
-      e.code === 4009 ? 'OBS rejected the password.' :
+      e.code === 4009 ? 'OBS rejected the password. Check it on the Setup tab.' :
       e.code === 4010 ? 'This OBS is too old. NOALBS needs OBS 28 or newer.' :
-      `Couldn't reach OBS at ${host}:${port}. Is OBS open, with Tools → WebSocket Server Settings → Enable turned on?`));
+      `Couldn't reach OBS at ${host}:${port}. Is OBS open, with Tools → WebSocket Server Settings → Enable WebSocket server ticked?`));
   });
 }
 
-function fillList(id, names) { $(id).innerHTML = names.map(n => `<option value="${esc(n)}">`).join(''); }
 function setObsStatus(msg, kind) { const el = $('obsStatus'); el.textContent = msg; el.className = 'help' + (kind ? ' obs-' + kind : ''); }
+function setObsUi(busy, err) {
+  const on = !!obsLists, chip = $('obsChip');
+  chip.disabled = $('obsBtn').disabled = !!busy;
+  chip.classList.toggle('on', on);
+  chip.classList.toggle('err', !!err);
+  $('obsChipTxt').textContent = busy ? 'Connecting…' : on ? `OBS · ${obsLists.scenes.length} scenes` : 'Connect OBS';
+  chip.title = on ? `Lists loaded from OBS ${obsLists.version}. Click to reload them.` : err || 'Connect to OBS to pick scenes from dropdowns';
+  $('obsBtn').textContent = on ? '↻ Reload from OBS' : '🔌 Connect to OBS';
+  $('obsOff').hidden = !on;
+  document.body.classList.toggle('obs-on', on);
+}
 
-async function fetchObs() {
-  const btn = $('obsBtn');
-  btn.disabled = true;
-  setObsStatus('Connecting to OBS…');
+// Remember (in this browser) that OBS was connected, so opening a config reconnects by itself
+const OBS_AUTO = 'noalbs-editor.connectObs';
+function wantsObs() { try { return localStorage.getItem(OBS_AUTO) === '1'; } catch(_) { return false; } }
+function rememberObs(on) { try { on ? localStorage.setItem(OBS_AUTO, '1') : localStorage.removeItem(OBS_AUTO); } catch(_) {} }
+
+// While OBS's lists are loaded, fields marked data-obs are dropdowns of what OBS has; otherwise they're text boxes
+const OBS_KIND = {scenes:'scene', inputs:'source', profiles:'profile', collections:'scene collection'};
+function pickerOptions(kind, cur, empty) {
+  const names = obsLists?.[kind] || [];
+  return `<option value="">${esc(empty || `— Choose a ${OBS_KIND[kind]} —`)}</option>` +
+    (cur && !names.includes(cur) ? `<option value="${esc(cur)}">${esc(cur)} (not in OBS)</option>` : '') +
+    names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+}
+function applyObsPickers(root = document) {
+  const pick = !!obsLists;
+  root.querySelectorAll('[data-obs]').forEach(el => {
+    const cur = el.value;
+    let ctl = el;
+    if (pick !== (el.tagName === 'SELECT')) {
+      ctl = document.createElement(pick ? 'select' : 'input');
+      for (const a of el.attributes) ctl.setAttribute(a.name, a.value);
+      el.replaceWith(ctl);
+    }
+    if (pick) ctl.innerHTML = pickerOptions(ctl.dataset.obs, cur, ctl.dataset.empty);
+    ctl.value = cur;
+  });
+}
+
+async function fetchObs(quiet) {
+  if ($('obsBtn').disabled) return;   // already connecting
+  setObsUi(true);
+  if (!quiet) setObsStatus('Connecting to OBS…');
+  let err;
   try {
-    const r = await obsConnect(g('sw-host').trim() || 'localhost', gi('sw-port',4455), g('sw-password'));
-    obsLists = r;
-    fillList('obs-scenes', r.scenes); fillList('obs-inputs', r.inputs);
-    fillList('obs-profiles', r.profiles); fillList('obs-colls', r.collections);
-    setObsStatus(`✓ Connected to OBS ${r.version}. Found ${r.scenes.length} scenes, and scene fields now suggest them as you type.`, 'ok');
-    doRefresh();
+    obsLists = await obsConnect(g('sw-host').trim() || 'localhost', gi('sw-port',4455), g('sw-password'));
+    rememberObs(true);
+    setObsStatus(`✓ Loaded from OBS ${obsLists.version}: ${obsLists.scenes.length} scenes. Scene, source, profile and collection fields are now dropdowns.`, 'ok');
   } catch(e) {
-    setObsStatus(e.message, 'err');
+    obsLists = null;
+    err = e.message;
+    setObsStatus(err, 'err');
+    if (!quiet) showToast(err, 'error');
   }
-  btn.disabled = false;
+  applyObsPickers();
+  setObsUi(false, err);
+  doRefresh();
+}
+
+function disconnectObs() {
+  obsLists = null;
+  rememberObs(false);
+  applyObsPickers();
+  setObsUi();
+  setObsStatus('Disconnected. Scene fields are text boxes again.');
+  doRefresh();
 }
 
 let toastT;
@@ -1404,6 +1468,7 @@ $('cmd-add').onchange = e => {
 $('saveBtnTxt').textContent = FSA ? 'Save config.json' : 'Download config.json';
 initTag('admins-box','admins-in');
 initTag('ignore-box','ignore-in');
+setObsUi();
 loadConfig(clone(DEFAULT_CONFIG));
 lastSavedEnv = buildEnvText();
 doRefresh();
