@@ -6,9 +6,11 @@ It's a single HTML file that runs in your browser: there's nothing to install, a
 
 > This is a community tool, not part of the official NOALBS project. It's built for NOALBS v2.
 
+📺 Made by NeighborhoodofMusic. Check out my IRL streams at [twitch.tv/neighborhoodofmusic](https://www.twitch.tv/neighborhoodofmusic)!
+
 ## Getting started
 
-1. **Download the editor.** Click [`noalbs-config-editor.html`](noalbs-config-editor.html), then the **Download raw file** button (↓) at the top right.
+1. **Download the editor:** get [noalbs-config-editor.html](https://github.com/musicman0917/NOALBS-configuration-file/releases/latest/download/noalbs-config-editor.html) from the [latest release](https://github.com/musicman0917/NOALBS-configuration-file/releases/latest).
 2. **Open it** by double-clicking the downloaded file. Use Chrome or Edge if you can (see [Browsers](#browsers)). If it opens in a different browser, right-click the file and choose **Open with**.
 3. **Close NOALBS** while you edit.
 4. **Open your config.** Click **Open** and pick the `config.json` in your NOALBS folder, or drag the file onto the page. No config yet? Click **Start a new one**.
